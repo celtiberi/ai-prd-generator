@@ -46,7 +46,9 @@ source venv/bin/activate  # On Windows: .\venv\Scripts\activate
 
 3. Install backend dependencies:
 ```bash
+cd backend
 pip install -r requirements.txt
+cd ..
 ```
 
 4. Install frontend dependencies:
@@ -139,7 +141,8 @@ ai-prd-generator/
 │   ├── events/
 │   │   └── event_bus.py
 │   ├── tests/
-│   └── main.py
+│   ├── main.py
+│   └── requirements.txt
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
@@ -150,7 +153,6 @@ ai-prd-generator/
 ├── config/
 │   ├── settings.py
 │   └── .env
-└── requirements.txt
 ```
 
 ## 🔄 API Endpoints
