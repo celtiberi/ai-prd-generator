@@ -1,0 +1,48 @@
+# Cursor AI IDE Rules
+
+# Documentation
+- Keep README.md up to date with changes
+- Document all public functions and classes with docstrings
+- Update API documentation when endpoints change
+- Maintain clear commit messages that describe changes
+
+# Code Quality
+- Follow PEP 8 style guide for Python code
+- Use TypeScript for frontend code
+- Write tests for new features
+- Keep test coverage above 80%
+
+# Project Structure
+- Organize code into appropriate directories
+- Keep related files together
+- Use consistent file naming conventions
+
+# Git Practices
+- Create feature branches for new work
+- Keep commits atomic and focused
+- Update dependencies in requirements.txt/package.json
+
+# Error Handling
+- Implement proper error handling
+- Log errors appropriately
+- Return meaningful error messages
+
+# Security
+- Never commit API keys or secrets
+- Validate all user input
+- Follow security best practices
+
+# Performance
+- Optimize database queries
+- Implement caching where appropriate
+- Monitor memory usage in agents
+
+# Frontend
+- Keep UI components reusable
+- Maintain responsive design
+- Follow accessibility guidelines
+
+# Testing
+- Write unit tests for new features
+- Update integration tests when needed
+- Test edge cases and error conditions 
