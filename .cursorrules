@@ -1,9 +1,21 @@
 # Cursor AI IDE Rules
 
+This document defines the rules and guidelines for the AI IDE to follow. The rules are provided in JSON format for AI parsing while maintaining human readability.
+
+```json
 {
     "rules": {
         "markdown_formatting": {
             "description": "Rules for outputting markdown files",
+            "structure": {
+                "required_sections": [
+                    "Human-readable header/title",
+                    "Brief description",
+                    "JSON content in code block",
+                    "Quick reference section"
+                ],
+                "format": "markdown with JSON"
+            },
             "guidelines": [
                 "Use quadruple backticks for outer markdown code blocks with file path: ````markdown:path/to/file",
                 "Drop a line after any heading before starting code blocks",
@@ -125,4 +137,32 @@
             }
         ]
     }
-} 
+}
+```
+
+## Quick Reference
+
+Key points from the rules:
+
+1. **Markdown Files**
+   - Must have human-readable header
+   - Must include JSON in code block
+   - Must have quick reference section
+   - Must use proper code fence syntax
+
+2. **Testing**
+   - Follow guidelines in `.notes/testing_guidelines.md`
+   - Use proper test organization
+   - Handle API quotas appropriately
+
+3. **Code Quality**
+   - Follow PEP 8 for Python
+   - Maintain test coverage
+   - Use TypeScript for frontend
+
+4. **Security**
+   - Never commit secrets
+   - Validate all input
+   - Follow security best practices
+
+For full details, parse the JSON content above. 

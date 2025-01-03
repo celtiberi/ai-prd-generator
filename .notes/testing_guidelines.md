@@ -1,3 +1,8 @@
+# Testing Guidelines
+
+This document contains structured guidelines for writing tests in the AI PRD Generator project. The guidelines are provided in JSON format for AI parsing while maintaining human readability.
+
+```json
 {
     "testing_guidelines": {
         "overview": {
@@ -164,4 +169,30 @@
             }
         }
     }
-} 
+}
+```
+
+## Quick Reference
+
+Key points from the guidelines:
+
+1. **Directory Structure**
+   - `backend/tests/agents/` - Unit tests
+   - `backend/tests/integration/` - Integration tests
+   - `backend/tests/base_test.py` - Shared utilities
+   - `backend/tests/conftest.py` - Common fixtures
+
+2. **Test Types**
+   - Integration Tests: Real components, no mocks
+   - Unit Tests: Use mocks, fast execution
+
+3. **OpenAI Models**
+   - Testing: `gpt-3.5-turbo`
+   - Production: `gpt-4-turbo-preview`
+
+4. **Error Handling**
+   - Handle rate limits
+   - Cache responses when possible
+   - Skip tests on quota exceeded
+
+For full details, parse the JSON content above. 
