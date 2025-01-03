@@ -1,3 +1,112 @@
 # Project Directory Structure
 
-## Core Components 
+```tree
+.cursorignore
+.cursorrules
+.notes/
+  .notes/directory_structure.md
+  .notes/project_overview.md
+  .notes/testing_guidelines.md
+.pytest_cache/
+.venv/
+.vscode/
+  .vscode/settings.json
+README.md
+backend/
+  backend/.pytest_cache/
+  backend/.venv/
+  backend/__init__.py
+  backend/__pycache__/
+  backend/agents/
+    backend/agents/__init__.py
+    backend/agents/__pycache__/
+    backend/agents/base_agent.py
+    backend/agents/feature_agent.py
+    backend/agents/lead_agent.py
+    backend/agents/memory_agent.py
+    backend/agents/project_consultant_agent.py
+    backend/agents/research_agent.py
+    backend/agents/validation_agent.py
+  backend/ai_prd_generator.egg-info/
+    backend/ai_prd_generator.egg-info/PKG-INFO
+    backend/ai_prd_generator.egg-info/SOURCES.txt
+    backend/ai_prd_generator.egg-info/dependency_links.txt
+    backend/ai_prd_generator.egg-info/top_level.txt
+  backend/api/
+    backend/api/routes.py
+  backend/config/
+    backend/config/settings.py
+  backend/main.py
+  backend/python
+  backend/requirements.txt
+  backend/schemas/
+    backend/schemas/__init__.py
+    backend/schemas/__pycache__/
+    backend/schemas/project_schemas.py
+    backend/schemas/test_fixtures.py
+  backend/services/
+    backend/services/__init__.py
+    backend/services/__pycache__/
+    backend/services/llm_service.py
+  backend/setup.py
+  backend/tests/
+    backend/tests/__init__.py
+    backend/tests/__pycache__/
+    backend/tests/agents/
+      backend/tests/agents/__init__.py
+      backend/tests/agents/__pycache__/
+      backend/tests/agents/conftest.py
+      backend/tests/agents/test_base_agent.py
+      backend/tests/agents/test_feature_agent.py
+      backend/tests/agents/test_lead_agent.py
+      backend/tests/agents/test_memory_agent.py
+      backend/tests/agents/test_research_agent.py
+      backend/tests/agents/test_validation_agent.py
+    backend/tests/base_test.py
+    backend/tests/conftest.py
+    backend/tests/db/
+    backend/tests/integration/
+      backend/tests/integration/__init__.py
+      backend/tests/integration/__pycache__/
+      backend/tests/integration/test_integration.py
+      backend/tests/integration/test_lead_agent_integration.py
+      backend/tests/integration/test_project_consultant_integration.py
+    backend/tests/logs/
+      backend/tests/logs/pytest.log
+    backend/tests/testing_guidelines.md
+config/
+  config/.env
+  config/__pycache__/
+  config/settings.py
+db/
+  db/prd_database.db
+frontend/
+  frontend/index.html
+  frontend/package-lock.json
+  frontend/package.json
+  frontend/src/
+    frontend/src/App.tsx
+    frontend/src/components/
+      frontend/src/components/FeatureCard.tsx
+      frontend/src/components/FeatureEditModal.tsx
+      frontend/src/components/ProgressView.tsx
+      frontend/src/components/ProjectConsultation.tsx
+      frontend/src/components/ProjectForm.tsx
+    frontend/src/main.tsx
+    frontend/src/services/
+      frontend/src/services/api.ts
+    frontend/src/store/
+      frontend/src/store/index.ts
+    frontend/src/types/
+      frontend/src/types/index.ts
+  frontend/tsconfig.json
+  frontend/tsconfig.node.json
+  frontend/vite.config.ts
+  frontend/yarn.lock
+project.prd.md
+pytest.ini
+requirements.txt
+scripts/
+  scripts/install-hooks.sh
+  scripts/update_directory.sh
+```

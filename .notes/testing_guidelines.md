@@ -1,180 +1,110 @@
 # Testing Guidelines
 
-This document contains structured guidelines for writing tests in the AI PRD Generator project. The guidelines are provided in JSON format for AI parsing while maintaining human readability.
+This document contains structured guidelines for writing tests in the AI PRD Generator project. The guidelines are provided in YAML format for AI parsing while maintaining human readability.
 
-```json
-{
-    "testing_guidelines": {
-        "overview": {
-            "description": "Guidelines for writing tests in the AI PRD Generator project",
-            "scope": ["Integration tests", "Unit tests", "Test organization", "Best practices"]
-        },
-        "directory_structure": {
-            "root": "backend/tests/",
-            "components": {
-                "agents/": {
-                    "purpose": "Unit tests with mocks",
-                    "key_files": {
-                        "conftest.py": "Unit test fixtures and mocks"
-                    }
-                },
-                "integration/": {
-                    "purpose": "Integration tests with real components",
-                    "requirements": ["No mocks", "Real services", "Complete workflows"]
-                },
-                "base_test.py": "Shared test utilities",
-                "conftest.py": "Integration test fixtures (real components)"
-            }
-        },
-        "integration_tests": {
-            "location": "backend/tests/integration/",
-            "requirements": [
-                "Never use mocks - all components must be real",
-                "Must use @pytest.mark.integration decorator",
-                "Must use real external services (OpenAI, Tavily)",
-                "Must handle API keys and credentials properly"
-            ],
-            "example": {
-                "description": "Complete workflow test",
-                "code": [
-                    "@pytest.mark.integration",
-                    "@pytest.mark.skipif(not settings.OPENAI_API_KEY, reason=\"OPENAI_API_KEY not set\")",
-                    "@pytest.mark.asyncio",
-                    "async def test_complete_workflow(self, agent_system, sample_project_data, caplog):",
-                    "    caplog.set_level(logging.DEBUG)",
-                    "    self.subscribe_to_events([\"event_type\"])",
-                    "    try:",
-                    "        lead_agent = agent_system[\"lead\"]",
-                    "        await lead_agent.some_method(sample_project_data)",
-                    "        await asyncio.sleep(0.2)",
-                    "        assert self.assert_event_received(\"event_type\")[0]",
-                    "    finally:",
-                    "        self.cleanup_subscriptions()"
-                ]
-            }
-        },
-        "unit_tests": {
-            "location": "backend/tests/agents/",
-            "requirements": [
-                "Use mocks for external services",
-                "Keep mocks in agents/conftest.py",
-                "Fast execution",
-                "No external dependencies"
-            ],
-            "example": {
-                "description": "Feature delegation test",
-                "code": [
-                    "@pytest.mark.asyncio",
-                    "async def test_feature_delegation(self, mock_llm_service, caplog):",
-                    "    caplog.set_level(logging.DEBUG)",
-                    "    self.subscribe_to_events([\"feature_request\"])",
-                    "    try:",
-                    "        agent = LeadAgent(llm_service=mock_llm_service)",
-                    "        await agent.process_feature(sample_feature)",
-                    "        assert self.assert_event_received(\"feature_request\")[0]",
-                    "    finally:",
-                    "        self.cleanup_subscriptions()"
-                ]
-            }
-        },
-        "test_base_class": {
-            "name": "BaseAgentTest",
-            "features": {
-                "event_subscription": "subscribe_to_events(topics: List[str])",
-                "event_verification": "assert_event_received(event_type: str)",
-                "cleanup": "cleanup_subscriptions()"
-            }
-        },
-        "database_testing": {
-            "requirements": [
-                "Use real SQLite database",
-                "Initialize with correct schema",
-                "Clean up test data",
-                "Use transactions for isolation",
-                "Handle errors gracefully"
-            ],
-            "example": {
-                "verification": [
-                    "cursor = memory_agent.sql_db.cursor()",
-                    "cursor.execute(\"SELECT * FROM features WHERE name = ?\", (name,))",
-                    "result = cursor.fetchone()",
-                    "assert result is not None"
-                ]
-            }
-        },
-        "event_handling": {
-            "patterns": {
-                "subscription": [
-                    "self.subscribe_to_events([\"event_type\"])",
-                    "try:",
-                    "    # Test code",
-                    "finally:",
-                    "    self.cleanup_subscriptions()"
-                ],
-                "verification": [
-                    "assert self.assert_event_received(\"event_type\")[0]"
-                ]
-            },
-            "timing": {
-                "delays": "Use asyncio.sleep(0.2) after operations that publish events",
-                "cleanup": "Always use try/finally for subscription cleanup"
-            }
-        },
-        "external_services": {
-            "rate_limits": {
-                "description": "Handling API rate limits and quotas",
-                "openai_models": {
-                    "testing": "gpt-3.5-turbo",
-                    "production": "gpt-4-turbo-preview",
-                    "rationale": [
-                        "Use cheaper models for testing to avoid quota issues",
-                        "gpt-3.5-turbo is sufficient for testing API integration",
-                        "Save gpt-4 quota for production use"
-                    ]
-                },
-                "strategies": [
-                    "Use exponential backoff for retries",
-                    "Cache API responses in test environment",
-                    "Mock responses after first real call",
-                    "Skip tests when quota exceeded",
-                    "Use separate test API keys"
-                ],
-                "implementation": {
-                    "retry_pattern": [
-                        "initial_delay = 1",
-                        "max_retries = 3",
-                        "backoff_factor = 2"
-                    ],
-                    "skip_conditions": [
-                        "@pytest.mark.skipif(",
-                        "    is_quota_exceeded(),",
-                        "    reason=\"API quota exceeded\"",
-                        ")"
-                    ],
-                    "caching": {
-                        "location": "tests/fixtures/api_responses/",
-                        "strategy": "Store first successful response, use for subsequent tests"
-                    }
-                }
-            },
-            "error_handling": {
-                "429_too_many_requests": {
-                    "actions": [
-                        "Log warning with quota status",
-                        "Skip remaining API-dependent tests",
-                        "Fall back to cached responses",
-                        "Mark tests as skipped rather than failed"
-                    ]
-                }
-            }
-        }
-    }
-}
+```yaml
+testing:
+  overview:
+    description: Comprehensive testing strategy for multi-agent systems
+    principles:
+      - Test-driven development
+      - Deterministic agent behavior
+      - Comprehensive coverage
+      - Isolated component testing
+   
+  test_types:
+    unit_tests:
+      scope: Individual agent behavior
+      tools: pytest
+      coverage_target: 90%
+      key_areas:
+        - Agent initialization
+        - Event handling
+        - State management
+        - Error handling
+     
+    integration_tests:
+      scope: Agent interactions
+      tools: pytest-asyncio
+      coverage_target: 85%
+      key_areas:
+        - Event flow
+        - Multi-agent coordination
+        - End-to-end workflows
+     
+    llm_tests:
+      scope: AI model interactions
+      strategy: Response mocking
+      considerations:
+        - Deterministic behavior
+        - Cost management
+        - Rate limiting
+        - Response validation
+     
+  agent_testing:
+    project_consultant:
+      focus:
+        - User interaction flow
+        - Requirements extraction
+        - Summary generation
+      mocks_needed:
+        - LLM responses
+        - User inputs
+     
+    lead_agent:
+      focus:
+        - Workflow coordination
+        - Feature delegation
+        - Documentation generation
+      mocks_needed:
+        - Feature agent responses
+        - Validation results
+     
+    feature_agent:
+      focus:
+        - Research integration
+        - Specification development
+        - Validation interaction
+      mocks_needed:
+        - Research results
+        - Validation feedback
+     
+  test_fixtures:
+    common:
+      - Mock LLM service
+      - Sample project data
+      - Event bus setup
+    specialized:
+      - API response fixtures
+      - Validation scenarios
+      - Documentation templates
+     
+  continuous_integration:
+    pipeline:
+      - Static type checking
+      - Unit tests
+      - Integration tests
+      - Coverage reporting
+    requirements:
+      - All tests must pass
+      - Coverage thresholds met
+      - No type errors
+
+  documentation_validation:
+    event_system:
+      test_cases:
+        - Verify all events have complete payload definitions
+        - Check subscription matrix completeness
+        - Validate error handling coverage
+        - Test persistence strategy definition
+      coverage_requirements:
+        - Event type definitions: 100%
+        - Subscription patterns: 100%
+        - Error handling: 100%
+        - Agent interactions: 100%
 ```
 
 ## Quick Reference
-
-Key points from the guidelines:
 
 1. **Directory Structure**
    - `backend/tests/agents/` - Unit tests
@@ -183,16 +113,20 @@ Key points from the guidelines:
    - `backend/tests/conftest.py` - Common fixtures
 
 2. **Test Types**
-   - Integration Tests: Real components, no mocks
-   - Unit Tests: Use mocks, fast execution
+   - Unit Tests: Individual agent behavior
+   - Integration Tests: Agent interactions
+   - LLM Tests: AI model interaction testing
 
-3. **OpenAI Models**
-   - Testing: `gpt-3.5-turbo`
-   - Production: `gpt-4-turbo-preview`
+3. **Testing Considerations**
+   - Deterministic behavior in AI interactions
+   - Proper event flow validation
+   - Comprehensive agent coverage
+   - Cost-effective LLM testing
 
-4. **Error Handling**
-   - Handle rate limits
-   - Cache responses when possible
-   - Skip tests on quota exceeded
+4. **Agent-Specific Testing**
+   - Project Consultant: User interaction flows
+   - Lead Agent: Coordination and delegation
+   - Feature Agents: Research and validation
+   - Memory Agent: Data persistence
 
-For full details, parse the JSON content above. 
+For full details, parse the YAML content above. 

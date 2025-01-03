@@ -1,0 +1,55 @@
+# Dependencies and build artifacts
+/node_modules
+/build
+/dist
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.git
+
+# Development environment
+.venv/
+.pytest_cache/
+.coverage
+htmlcov/
+.DS_Store
+*.log
+
+# IDE specific
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+
+# Database and vector stores
+*.db
+*.sqlite
+*.sqlite3
+/db/faiss_index/
+/db/prd_database.db
+
+# API responses and test fixtures
+/tests/fixtures/api_responses/
+/backend/tests/fixtures/api_responses/
+
+# Generated documentation
+/docs/_build/
+/site/
+
+# Temporary files
+*.swp
+*.swo
+*~
+.tmp/
+temp/
+
+# Large binary files
+*.pdf
+*.zip
+*.tar.gz
+
+# Python packaging
+*.egg-info/
+*.egg 
