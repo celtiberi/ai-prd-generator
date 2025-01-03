@@ -60,6 +60,18 @@ project:
         - API specifications
         - Data schemas
         - Event systems
+      dependency_docs:
+        location: .notes/dependencies
+        purpose: Integration documentation
+        requirements:
+          - Library usage patterns
+          - Integration examples
+          - Error handling
+          - Best practices
+        update_strategy:
+          - Version change triggers
+          - API updates
+          - Breaking changes
       quality_docs:
         - Testing guidelines
         - Security standards

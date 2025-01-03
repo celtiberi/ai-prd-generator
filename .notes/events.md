@@ -160,3 +160,63 @@ event_system:
       partial_failures:
         strategy: continue_with_logging
         notification: system_monitor 
+
+  event_system:
+    topic_patterns:
+      naming_conventions:
+        system_events:
+          prefix: "system."
+          examples:
+            - "system.error"    # System-wide error events
+            - "system.status"   # System status updates
+          rules:
+            - Must start with "system."
+            - No additional prefixes added by EventSystem
+            - Used for system-wide messaging
+        
+        agent_events:
+          format: "agent.{agent_id}.{event_type}"
+          examples:
+            - "agent.feature_agent.ready"
+            - "agent.validator.complete"
+          rules:
+            - EventSystem adds "agent." prefix automatically
+            - {agent_id} identifies specific agent
+            - {event_type} describes the event
+        
+      topic_hierarchy:
+        system:
+          - Direct use of topic name
+          - No automatic prefixing
+          - Example: subscribe("system.error", handler)
+        
+        agent:
+          - Automatically prefixed with "agent."
+          - Requires agent_id parameter
+          - Example: subscribe("ready", handler, agent_id="feature_agent")
+    
+    message_format:
+      structure:
+        publish_args:
+          event_type: str    # Topic name or agent event type
+          source_agent: str  # Sender identifier
+          target_agent: str  # Recipient identifier or "*"
+          payload: Any       # Event data
+          correlation_id: str # Unique event identifier
+        
+        handler_signature:
+          format: "def handler(data=None)"
+          rules:
+            - Must accept data as kwarg
+            - Data contains payload from sender
+    
+      error_handling:
+        system_errors:
+          topic: "system.error"
+          payload:
+            error: str       # Error type
+            listener: str    # Failed handler info
+            topic: str       # Original topic
+          handling:
+            - Subscribe to "system.error" for error monitoring
+            - Errors don't prevent message delivery to other handlers 

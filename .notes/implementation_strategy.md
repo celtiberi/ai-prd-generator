@@ -11,10 +11,21 @@ implementation_phases:
         priority: 1
         dependencies: []
         features:
-          - Publisher/subscriber setup
-          - Event type definitions
-          - Event bus implementation
-          - Event logging
+          - Publisher/subscriber setup ✓
+          - Event type definitions ✓
+          - Event bus implementation ✓
+          - Event logging ✓
+        status: completed
+        implementation_notes:
+          - Uses pypubsub for pub/sub functionality
+          - Implements token bucket rate limiting
+          - Includes event history with filtering
+          - Supports event filtering and metrics
+        key_patterns:
+          - Topic-based routing with validation
+          - Error handling with retries and jitter
+          - Event storage with size limits
+          - Comprehensive metrics collection
       
       state_management:
         priority: 1
@@ -38,10 +49,20 @@ implementation_phases:
         priority: 1
         dependencies: []
         features:
-          - OpenAI integration
-          - Rate limiting
-          - Response parsing
-          - Error handling
+          - OpenAI integration ✓
+          - Rate limiting ✓
+        status: completed
+        implementation_notes:
+          - Uses token bucket algorithm for rate limiting
+          - Supports both development (gpt-3.5-turbo) and production (gpt-4-turbo-preview) models
+          - Includes streaming and function calling capabilities
+          - Integrates with event system for error reporting
+          - Validates against model-specific token limits
+        key_patterns:
+          - Environment-based configuration
+          - Proper cleanup in tests
+          - Async/await for all API calls
+          - Comprehensive error handling with retries
       
   2_core_agents:
     description: Essential agents required for basic functionality

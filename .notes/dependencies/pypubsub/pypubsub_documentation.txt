@@ -1,0 +1,2774 @@
+Pypubsub Documentation
+Release 4.0.3
+
+Oliver Schoenborn
+
+Jan 28, 2019
+
+Contents
+
+1
+
+About
+1.1 License . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+1.2 Authors . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+1.3 Acknowledgements . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+1.4 PyPubSub Users . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+1.5 History . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+1.6 Roadmap . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+3
+3
+4
+4
+4
+6
+7
+
+2
+
+Install
+2.1 System Requirements . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+2.2 How-to . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+2.3 Support . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+2.4 Release Notes . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+2.5 Changelog . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+9
+9
+9
+10
+10
+11
+
+3
+
+Use
+3.1
+3.2
+3.3
+3.4
+
+Basic Usage . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+Advanced Usage . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+How Tos . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+Reference . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+15
+15
+22
+31
+31
+
+4
+
+Contribute
+4.1 Contributing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+4.2 System Requirements . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+4.3 Scripts Available . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+4.4 Releases . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+4.5 Py2Exe and cx_Freeze . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
+
+49
+49
+50
+51
+51
+52
+
+5
+
+Indices and tables
+
+57
+
+Python Module Index
+
+59
+
+i
+
+ii
+
+Pypubsub Documentation, Release 4.0.3
+
+This is the documentation for the PyPubSub project. This Python project defines a package called ‘pypubsub’ which
+provides a publish-subscribe API to facilitate
+1. event-based programming
+2. decoupling an application’s in-memory components
+PyPubSub provides the infrastructure for using the Observer pattern in your single-process application. It is pure
+Python and works on Python 3.3+.
+Using the Observer pattern in your single-process application can dramatically simplify its design and improve testability. The Observer allows code to observe “messages”, without knowing anything about the source of the message
+(which Python object or function), and in turn allows code to emit messages without any regard for which code will
+receive the message (it may not be received at all), what the receiving code will do with the message, etc. Basically
+the Observer pattern is like a radio broadcast, it is a one-way message sent, the only contract is in the message content:
+the receiver/listener must have the ability to decode the message.
+A classic example where PyPubSub could be useful: a GUI application. How do components like views and dialogs
+communicate their changes to one another? Without a publish-subscribe mechanism, the code can become a real
+spaghetti.
+PyPubSub makes it easy for your code to emit messages, and other code, in the same process, to receive those messages. PyPubSub takes care of the plumbing.
+The Publish-Subscribe API provided by PyPubSub has the following characteristics:
+1. Message Sender: The sender of a PyPubSub message is the ccode that calls pub.sendMessage().
+2. Message Topic: a. Every message is specific to a “topic”, defined as a string name; b. Topics form a hierarchy.
+A parent topic is more generic than a child topic.
+3. Message Data: any keyword arguments used by the sender, pub.sendMessage(topic, **data);
+(a) A topic may have no associated message data, or may have any mixture of required and optional data; this
+is known as its Message Data Specification (MDS);
+(b) The MDS of a child topic cannot be more restrictive than that of a parent topic;
+(c) Once the MDS is set for a topic, it never changes during the runtime of an application.
+4. Message Listener: All message listeners are callables that get registered with PyPubSub in order to receive
+messages of a given topic, and must have a signature that is compatible with the topic’s MDS.
+5. Message Delivery:
+(a) Messages sent will be delivered to all registered listeners of a given topic; this includes listeners of the
+topic, parent topic, etc. Hence the root of all topics (called ALL_TOPICS) receives all messages.
+(b) Sequence of delivery is unspecified and can change at any time. This is fundamental to the Observer
+pattern, and your application’s listeners must be designed to not depend on the order in which they receive
+a given message.
+(c) Messages are delivered synchronously: a listener must return or throw an exception before the message is
+delivered to the next listener.
+(d) A listener that raises an exception does not prevent remaining listeners from receiving the message.
+(e) A message sent will be delivered to all registered listeners of the specified topic before control is returned
+to the sender.
+6. Message Immutability: message contents must be left unchanged by listeners, but PyPubSub does not verify
+this.
+7. Message Direction: a message is one-way from sender to set-of-listeners; PyPubSub does not support “answering” with a response from each listener to the sender. This could, of course, be achieved by having the
+
+Contents
+
+1
+
+Pypubsub Documentation, Release 4.0.3
+
+sender include a callback as message data, and each listener calling that callback with agreed-upon data, but this
+(typically) increases coupling.
+8. Message Source: PyPubSub does not provide any information to the listeners regarding the origin (aka source,
+or provenance) of a message. The sender could, of course, include such information with the message data, but
+this is not recommended as it defeats the purpose of the Observer pattern.
+Here is a schematic representation of the role of PyPubSub during message sending and delivery:
+
+PyPybSub was originally written by Robb Shecter as wx.lib.pubsub in wxPython 2.x, sometime around y2k. Robb
+and the wxPython author, Robin Dunn, allowed me to take over the package around 2003, and I moved it out into a
+standalone package (no dependencies on wxPython) around 2006 with their approval. I hosted the code on SourceForget.net for about 10 years, then moved it to github sometime in 2016. The code is very mature and stable. See History
+for details on its history and Roadmap for possible future work.
+Contents:
+
+2
+
+Contents
+
+CHAPTER
+
+1
+
+About
+
+In this section:
+• License
+• Authors
+• Acknowledgements
+• PyPubSub Users
+• History
+• Roadmap
+
+1.1 License
+Simplified BSD:
+Copyright (c) since 2006, Oliver Schoenborn
+All rights reserved.
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+1. Redistributions of source code must retain the above copyright notice, this
+list of conditions and the following disclaimer.
+2. Redistributions in binary form must reproduce the above copyright notice,
+this list of conditions and the following disclaimer in the documentation
+and/or other materials provided with the distribution.
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+(continues on next page)
+
+3
+
+Pypubsub Documentation, Release 4.0.3
+
+(continued from previous page)
+
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+1.2 Authors
+The main developer of the package is Oliver Schoenborn, but Robb Shecter started it all back in early 2000’s. The code
+is now hosted on github at http://github.com/schollii/pypubsub (previous to that, it was hosted on SourceForge.net, and
+prior to that, it was hosted in wxPython). PyPubSub is on the Python Package Index at http://pypi.python.org/pypi/
+PyPubSub.
+As listed in the Contributing section, contributions of any form are welcome. Even questions help progress the project.
+author Oliver Schoenborn <schoenborno at (@) users.sf.net>
+
+1.3 Acknowledgements
+Thanks to SourceForge.net for hosting the project until September 2016. Thanks to Github.com for hosting the project
+from October 2016. Thanks to Robb Shecter for having given me the chance to take over this project from him many
+years ago (ca 2004!). Thanks to all those users of PyPubSub who ask questions, make suggestions, point out bugs, etc.
+
+1.4 PyPubSub Users
+The page at https://libraries.io/pypi/PyPubSub has useful statics on which other github projects use/watch/fork pypubsub.
+In addition, several users have donated a bit of their time to describe how they use/d PyPubSub in their Python projects.
+Darin Gordon, for Yosai, since 2015: Yosai (https://github.com/YosaiProject) is a security framework for python applications, offering authentication, authorization, and session management from a common API. Yosai uses
+PyPubSub to facilitate event-driven responses to security-related changes. For instance, when a session expires,
+valuable information is logged and cached authorization info is cleared.
+Jerome Laheurte, for Task Coach, since Feb 2012: Task Coach (https://sourceforge.net/projects/taskcoach/) is a
+simple open source todo manager to keep track of personal tasks and todo lists. It is designed for composite tasks,
+and also offers effort tracking, categories, notes and more. Task Coach uses PyPubSub as its Publisher/Listener
+implementation to cleanly separate model and view layers.
+Steven Sproat, for Whyteboard, since Feb 2010: I’ve been using PyPubSub for around 2 months in my crossplatform drawing application, Whyteboard (http://launchpad.net/whyteboard). My Shape models (rectangle,
+polygons etc) use PyPubSub to notify the GUI of any changes to themselves or to request actions be performed
+on the canvas (e.g capture user’s mouse), and the GUI responds by updating various dialogs with this information. This means that my shapes no longer need to maintain references to the canvas in order to perform
+operations on it, and can instead send a message saying “do something” without caring how it’s done.
+
+4
+
+Chapter 1. About
+
+Pypubsub Documentation, Release 4.0.3
+
+Josh English, for WMS, since 2008: I use it in my Writing Management System (http://joshua.r.english
+.googlepages.com/wms). I’m using it to control interfaces, such as telling the frame to change the status bar,
+or a notebook to change a panel. PyPubSub enables me to focus on what data to pass around my application,
+rather than how to pass it around. This makes it easy to put in the finer details of my application.
+Geoff Gilmour-Taylor, since April 2008: I use wx.lib.pubsub for a suite of in-house batch conversion tools for
+DAISY talking books, called Garden Tools (in-house software for the CNIB Library, http://www.cnib.ca/en/
+Services/library/). For MVC, communication in a wxPython app.
+Loose coupling of business logic and GUI. It allows me to trigger multiple actions on a single message without
+having to locate and modify all the places where the message is sent. I was able to add a logging module that
+reads the same status messages that are sent to the GUI without having to modify any of my other code.
+Phil Mayes, for Listomax, since 2007: Listomax (http://www.listomax.com/) uses version 1 of PyPubSub for MVC:
+multiple View (UI) components may need to change when the Model changes; simpler than direct calls, lower
+coupling.
+Mike Driscoll, for PyTimesheet and Zimbra Alerts, since 2007: I use wx.lib.pubsub in two internal projects at my
+employer’s business, “PyTimesheet” and the “Zimbra Alerts”. I use it to send information between various
+frames, such as an options menu back to the main application that launched it. The main application I use it for
+though is a Timesheet program where I use it to tell my program which frame to display when. Basically when
+one closes, I need another one to open and I found that PyPubSub made this quite trivial. The other program is
+used in conjunction with our Zimbra web mail and will pop-up an alert when we receive an email and it also has
+an Outlook-like Reminder dialog for appointments. . . And thanks for providing such a nice tool for my arsenal!
+Anthony Floyd, RAVEN, since 200?: Our project is called “RAVEN”, it’s an analytical and finite-element analysis
+program for simulating and analyzing the processing of composite materials in the aerospace industry. We use
+PyPubSub as the communications backbone. We essentially have a MVC framework, and use PyPubSub to have
+the UI respond to things happening in the data. However, we also use it to have data objects respond to changes
+in other data objects.
+We’re quite enamoured with PyPubSub! It’s proven to be an effective way to keep the UI out of the backend,
+and an effective way to keep the backend modularized.
+Sebastian Zurek, OpenSynergy, since 2007: I’m using wx.lib.pubsub module as part of the OpenSynergy framework
+(http://www.opensynergy.pl, temporarily offline) that I am developing, and I found it VERY usefull. PyPubSub
+is used as the communication layer betteen the extensions components and the framework, between the Model
+and Visual, and between the Visual elements.
+Werner F. Bruhin, for the The Wine Cellar Book, since 2006 Have been using PyPubSub for years and since I
+started work on version 4 of my application [http://thewinecellarbook.com)] over a year ago I switched to the
+PyPubSub v3 API and defined a topic tree. Having a topic tree is just great as you make sure that you don’t
+mistype the topic names and on top you have nice documentation on what topics you already defined and what
+parameter(s) need to be passed for each topic.
+Currently I have topics to keep track of database state, data needs saving, database item/row has changed, was
+deleted etc which trigger updates to relevant lists to update themselves if needed and to show messages on a
+wx.InfoBar.
+Mike Rooney, for wxBanker, since 2006: I use PyPubSub as the crucial event handling mechanism for wxBanker
+(https://launchpad.net/wxbanker). It works well for implementing design patterns such as MVC where you
+want to eliminate coupling, since it doesn’t require that you know specific method names or implementation
+details of other classes, modules, or libraries. PyPubSub is also great when you want to make an announcement
+without requiring that anything (or how many things) is listening to or acting upon that announcement. In short,
+PyPubSub makes intra-process communication a dream come true.
+QVI (http://www.qvii.com/) for several applications, since 2006: Here at QVI we use PyPubSub for most of our wxPython applications (notably SmartTree), to achieve very lightweight, simple, and readable communication
+
+1.4. PyPubSub Users
+
+5
+
+Pypubsub Documentation, Release 4.0.3
+
+between classes and modules. One of the nice aspects of PyPubSub is how easy it is to incorporate into existing code, and how well-suited it is for pluggable/modular designs which want to make announcements about
+events, but don’t require that or care if any other module is listening. It makes handling “events” easy, whatever we define them to be, and removes the need for the handlers to have any specific knowledge of how the
+announcements are made or where they came from.
+After discovering we could use PyPubSub independently of wxPython, we also use it in an application or two
+that doesn’t use wxPython at all, but where we still desire a lightweight event handling mechanism (when don’t
+you?).
+Oliver Schoenborn (Author of PyPubSub), for several applications, from 2004 to 2010: I have used PyPubSub on
+several projects. Applications which, for example,
+• show tree structures with selectable nodes, and selected node’s associated information panel
+• show objects on information panels with info regarding progress of other components (running on other
+machines) updated in real time
+• show dialog boxes with with entry fields for settings
+• have several panels in a wizard style to configure a task for execution
+With PyPubSub, one event occurs due to a mouse click on an icon, and and all parts of the code that need
+updating get called with the new data. This means automatic update of menu items (adding, removing etc), state
+in various panels, etc. Gone are the long sequences of calls through the code.
+Last time I had to build or maintain a Python event-based application was 2009, but I’m dedicated to maintaining
+PyPubSub for other developers. When I make or incorporate improvements based on user feedback, I rely on
+the high % coverage of the unit regression tests, the useful examples, and the exception messages which give a
+lot of useful information when the message data fields don’t adhere to the topic definition (inferred or specified).
+I look forward to my next event-based Python application, which might be in the fall of 2013.
+
+1.5 History
+PyPubSub was originally created by Robb Shecter as a module in the wxPython library, named wx.lib.pubsub, sometime around y2k. At that time, pubsub had one responsiblity: to allow for messages to be sent to listeners based on a
+hierarchy of topics. In the Spring of 2004, I added the ability to automaticaly unregister listeners that were no longer
+in use outside of PyPubSub (by making the module’s Publisher use weak references to listeners). For large PyPubSubbased application, this greatly simplified listener management. I asked Robin Dunn if he would like the changes to be
+put in wx.lib.pubsub; he forwarded the request to Robb. And the rest is history.
+Only a few minor tweaks and improvements happened for the next couple years. In 2006 when I used PyPubSub on
+a couple larger projects, I wished that topic trees and the topic message data could be documented. I also found that
+a major time waster when using pubsub at that time was debugging incorrect message data, so I started thinking of a
+way that I could validate message data. I also wished that I could find a design that would allow the use of tools like
+pylint to point out invalid topic names.
+So I developed version 2 of wx.lib.pubsub in the Fall of 2006. I also created an entry in the Python Package Index as
+PyPubSub (http://pypi.python.org/pypi/PyPubSub) and used PyPI to hold a snapshot of my files so that even developers
+not using wxPython could benefit from it.
+In May 2007 I decided it was time to create a project on SourceForge.net for it. It was http://sourceforge.net/projects/
+pubsub, so the web site was at http://pubsub.sourceforge.net. The wx.lib.pubsub was then a verbatim copy of the src
+folder from sf.net/projects/pubsub, as it was before PyPubSub version 2.
+In 2008 someone created, unbeknownst to me, an unrelated Python project on sourceforge and named it PyPubSub.
+The author did not realize that mine already existed with that name in PyPI and that therefore he would have to rename
+his so as not to confuse users. This project came to my attention when I wanted to rename pubsub on SF.net to
+6
+
+Chapter 1. About
+
+Pypubsub Documentation, Release 4.0.3
+
+pypubsub to make it clear that it was python based, and to match the already one-year old entry on PyPI. In the end,
+the author renamed his project and sf.net/projects/pypubsub was available for my taking.
+After using PyPubSub version 2 for a bit I wasn’t really happy with it, so I went back to the drawing board to support
+topic and message data documentation, definition and validation started. Version 3.0.0, completed some time in 2008,
+achieved this via keyword-based message data and topic definition providers. Version 3 also added support for tracking
+PyPubSub activity such as listener subscription, topic creation, and sending messages, very useful in large applications.
+Version 3 of PyPubSub was not compatible with v2 or v1, so I couldn’t directly upgrade wx.lib.pubsub to it without
+at least supporting a deprecated v1 for a while. This led to version 3.1.0 in early 2010, which supported the v1 API
+via a setupv1.py configuration module that could be imported before the first import of pubsub. This was quite a
+challenge as there was a fair bit of commonality between PyPubSub v1 and v3, but also some significant differences.
+In retrospect I should not have done that because it made the code rather complex. I did a good job of it so it was
+easy to make fixes, but it could be a pain to troubleshoot. If I had to walk the same mile again, I would just have
+two separate implementations, with an easy way to import one or the other (e.g. pubsub vs pubsub3 package package
+folders).
+Not much happened between early 2010 and first half of 2013, except for a minor release 3.1.2 in November 2011:
+the code was stable and did its job nicely so no major changes needed. Also in that period I didn’t develop or maintain
+any event-based Python application so I didn’t have any reason to update PyPubSub. I did accumulate about a dozen
+tickets on SF.net involving minor bugs or patches contributed by users in that period.
+The overhaul of wxPython ‘Phoenix’ in 2013 was the perfect opportunity to make pubsub version 3 API the default,
+and to make version 1 API accessible only on demand (via the setuparg1.py configuration module). I also removed all
+the code that was there just to support the old version 1 API, leaving just a version 3 API with two message protocols
+available. I took the opportunity to address the dozen tickets during the summer of 2013, and to improve the docs.
+In early 2016 I started work to remove the deprecated code and support only the original messaging protocol that I had
+designed in 3.0. With two busy kids, it is not easy to find the time to do this, so it took me till October 2016 for me
+to get my act together and finally release v4: a nice simple design with no import magic needed, no configuration, no
+complicated docs to explain the mulitple APIs, use of wheels instead of eggs, use of annotations, etc.
+
+1.6 Roadmap
+List of things I would like to add to PyPubSub:
+• complete implementation of multi-threading helper class, no change required to PyPubSub, rather just utility
+class to help user (pseudo-code already in src/contrib)
+• figure out a good way to prevent wrapped listener subscriptions from being DOA (PyPubSub only keeps
+weak reference to listener, so if listener subscribe like pub.subscribe( wrapper(yourListener)
+) then listener will be unsubscribed as soon as subscribe returns; you need refListener =
+wrapper(yourListener); pub.subscribe(refListener))
+• finish the src/contrib/monitor implementation to monitor PyPubSub messages, or some way of monitoring message sending
+If anyone is interested in helping, please post on the dev forum.
+The following is no longer on list of things to do:
+• support pubsub over UDP and TCP sockets: mqtt does this! PyPubSub and mqtt are complementary: PyPubSub
+for messaging between application components within one Python interpreter; mqtt for messaging between
+compoonents on a network.
+
+1.6. Roadmap
+
+7
+
+Pypubsub Documentation, Release 4.0.3
+
+8
+
+Chapter 1. About
+
+CHAPTER
+
+2
+
+Install
+
+In this section:
+• System Requirements
+• How-to
+• Support
+• Release Notes
+• Changelog
+
+2.1 System Requirements
+Requires Python >= 3.3. It has been tested on Windows 7 and various flavors of *nix (such as Fedora, OpenSuse,
+Ubuntu and OSX). For Python < 3.5, there are additional requirements:
+• Python 3.4: requires the “typing” package (from PyPI)
+• Python 3.3: requires the same as 3.4 + enum34, pathlib and weakrefmethod (all on PyPI)
+Please post on pypubsub forum (see Support section) if you have successfully used PyPubSub with other combinations
+of Python and Platform.
+Many thanks to Jerome Laheurte for providing a buildbot with Linux and OSX VM’s for continuous testing.
+
+2.2 How-to
+With pip installed on your system, do pip install pypubsub.
+If you want the developer version, you can try pip install --pre pypubsub.
+
+9
+
+Pypubsub Documentation, Release 4.0.3
+
+You can also get a zip/tgz from https://github.com/schollii/pypubsub/releases.
+
+2.3 Support
+The forums are currently hosted on google groups:
+• http://googlegroups.com/group/pypubsub: PyPubSub general help and support (hosted by Google Groups)
+• http://googlegroups.com/group/pypubsub_dev: PyPubSub bug reports, feature suggestions, patches, etc (hosted
+by Google Groups)
+Also, many PyPubSub users are on the wxPython-users mailing list.
+
+2.4 Release Notes
+2.4.1 Main changes in v4.0.3 (compared to 3.3)
+• Support Python 3.5 and 3.6
+• Distribution via wheel
+• Abandon support for Python 2.x and easy_install
+• Abandon support for (long-ago deprecated) arg1 messaging protocol
+• Added currying of subscribed listener args
+• Significant speed improvement for message delivery
+• Use PEP 484 style of annotations throughout
+• Support listeners with keyword-only arguments
+Consequences of these changes:
+• If your app runs in Python 2.x, you cannot upgrade to pypubsub v4.
+• If your Python 3.x application uses setupkwargs.py, simply remove the import statement from your app. Your
+app should run without further changes. If your app won’t run after doing this, please post on https://groups.
+google.com/forum/#!forum/pypubsub.
+• If your Python 3.x application uses setuparg1.py, this means you are using the long-ago deprecated arg1
+API for messaging. Before upgrading to v4 pypubsub, you will have to migrate your app/package to use
+pypubsub’s kwargs API. This is most easily done via pypubsub 3.3, which has functions and docs (http:
+//pypubsub.readthedocs.io/en/stable/usage/howtos/index.html) to help with this task. Once you have completed
+this migration, you should be able to upgrade to pypubsub v4 without further changes.
+• The delivery order of sendMessage() has been changed. However as described in the documentation since the
+very early days of Pypubsub 3, you should design your application to not depend on the order of message
+delivery to listeners. If you did not follow this very important architectural principle, you should fix your
+application before upgrading. Then the upgrade will be trivial.
+Oliver Schoenborn January 2019
+
+10
+
+Chapter 2. Install
+
+Pypubsub Documentation, Release 4.0.3
+
+2.5 Changelog
+High-level changelog. For details, consult the SVN logs.
+4.0.3 (Jan 2019)
+• Cleanup for Python 3.7 (mostly add support for keyword-only args, use Python
+ture/Parameter and add tests for
+
+3
+
+inspect
+
+signa-
+
+4.0.0 (Dec 2016)
+• Verified support Python 3.5 and 3.6
+• Distribution via wheel
+• Abandon support for Python 2.x and easy_install; now requires Python >= 3.3
+• Abandon support for long-ago deprecated arg1 messaging protocol
+• Added currying of subscribed listener args
+• Significant speed improvement for message delivery
+• Use PEP 484 style of annotations throughout
+• Use enum instead of constants when practical
+3.3.0 (Feb 2014)
+• cleanup low-level API: exception classes, moved some out of pub module that did not belong there (clutter),
+move couple modules; specifically:
+– Removed from pub (available on object returned from pub.getDefaultTopicMgr()) * getOrCreateTopic
+-> pub.getDefaultTopicMgr().getOrCreateTopic * getTopic -> pub.getDefaultTopicMgr().getTopic *
+newTopic -> pub.getDefaultTopicMgr().newTopic * delTopic -> pub.getDefaultTopicMgr().delTopic
+* getAssociatedTopics -> pub.getDefaultTopicMgr().getTopics * getDefaultTopicTreeRoot ->
+pub.getDefaultTopicMgr().getRootAllTopics
+– Removed from pub (available from pubsub.core): * ITopicDefnProvider
+– Moved from pub into to pubsub.core.TopicDefnProvider class as classmethod: * registerTopicDefnProviderType
+– Renamed: * TopicNameInvalid -> TopicNameError * UndefinedTopic(RuntimeError) -> TopicNameError(ValueError) * UndefinedSubtopic(RuntimeError) -> TopicNameError(ValueError) * ListenerInadequate(TypeError) -> ListenerMismatchError(ValueError) * UnrecognizedImportFormat -> UnrecognizedSourceFormatError * ListenerSpecInvalid -> MessageDataSpecError * SenderMissingReqdArgs -> SenderMissingReqdMsgDataError * SenderUnknownOptArgs -> SenderUnknownMsgDataError * ListenerNotValidatable -> TopicDefnErrorcd
+– Changed; * Topic.isSendable -> hasMDS * TopicManager.??? -> isTopicInUse + hasTopicDefinition
+• completed the ref docs
+• support installation via pip
+• cleanup versioning metadata: use pubsub.__version__ instead of pub.PUBSUB_VERSION
+• support Python 3
+• add getListenersIter() to iterate over listeners without temp copy of listener list
+• add deprecation message when import setuparg1
+• new wxPubsubMonitor utility class
+
+2.5. Changelog
+
+11
+
+Pypubsub Documentation, Release 4.0.3
+
+3.2.0 (sep 2013)
+• cleanup of docs
+• merged importTopicTree to addTopicDefnProvider
+• renamed pub.getDefaultRootAllTopics to pub.getDefaultTopicTreeRoot
+• removed pub.importTopicTree, use pub.addTopicDefnProvider(source, format)
+• renamed pub.exportTopicTree to pub.exportTopicTreeSpec
+• several minor bug fixes
+• incorporated some patches contributed by users: one for performance improvement when high-frequency of
+subscribers/messages; one for reading topic tree specification from XML rather than .py module
+• v1 and v2 APIs no longer supported
+3.1.2 (2011)
+• added some docs
+• more configurable importTopicTree
+• using importTopicTree now allows to use the topic hierarchy as topic names instead of string, thereby enabling
+python editors to support PyPubSub-based development via code completion and sendMessage keyword arguments.
+3.1.1b (2010)
+• cleanup docs
+• couple minor tweaks (for instance added pub.getMsgProtocol())
+3.1.0b (2009)
+• Import/export of topic tree and its documentation using Python interpreter
+• Better support for evolving topic tree during application development, with “freezing” certain parts of tree
+• Helper functions to transition from arg1 to kwargs messaging protocol
+• Improved error messages (in exceptions raised)
+• PyPubSub can be installed inside other packages and will not interfere with system-wide pubsub
+• pubsubconf module moved inside pubsub package so manual install easier
+• Support !**kwargs in listeners
+• Support for more than one pubusb notification handler
+• Multiple publisher engines in one application (for instance, in separate threads, or for different “domains” in a
+large application)
+• Upgraded docs
+• Bug fixes, cleanup
+3.0 (2008)
+• Use keyword arguments in sendMessage
+• Support any kind of listener, not just those with one unnamed argument
+• Validate listeners at subscription time
+• Support “inheritance” of keyword arguments by subtopics during message sending (prevents a common bug
+which was to send data using wrong argument names).
+
+12
+
+Chapter 2. Install
+
+Pypubsub Documentation, Release 4.0.3
+
+• Topic tree can be documented (including topic message arguments)
+• Support user-defined notification handling of certain events occuring in PyPubSub such as “subscribe”,
+“sendMessage”.
+• Support user-defined exception handling of exceptions raised by listeners
+• Proto-Documentation on own website using Sphinx
+• Separate regression testing folder for nose-based automated testing
+• Configuration module for choosing which PyPubSub API to use in application, useful for backwards compatibility
+2.0 (2007)
+• more Pythonic API (new PublisherClass API, at module level so easier to call – no need to know about
+singleton)
+• Support definition of topic tree via a python class, for increased rigor and documentability of topics
+• Topics are objects
+1.0 (2005)
+• Given its own “home” as separate package from wxPython’s wx.lib.pubsub
+• Factored out weakmethod
+• Put on Cheese Shop
+Pre 1.0
+• Created by Rob Shecter in wxPython’s wx.lib (early 2000?)
+• Weakmethod added by Oliver Schoenborn (2004)
+• Further development transfered to Schoenborn (2004)
+
+2.5. Changelog
+
+13
+
+Pypubsub Documentation, Release 4.0.3
+
+14
+
+Chapter 2. Install
+
+CHAPTER
+
+3
+
+Use
+
+If you are new to PyPubSub, you will likely want to start with Basic Usage. If you want a quick start, jump the Quick
+Start section.
+If you develop an application that uses PyPubSub, whether it is prototype or production quality code, if it is more than
+just an experiment you will find that it can become tedious to debug. This is because the decouping can make the
+link between causes and effects challenging to identify. Also, you need better control over error handling, and more
+maintainability via documentation of message structure. This is when you turn to the Advanced Usage section.
+
+3.1 Basic Usage
+Basic usage of PyPubSub involves subscribing listeners, sending messages, and responding to messages. The Quick
+Start subsection below provides examples. For details, navigate to the Basic PyPubSub Tasks subsection:
+
+3.1.1 Basic PyPubSub Tasks
+Several essential tasks supported by PyPubSub
+In this section:
+• Subscribing to Topics
+– Callable
+– Topic Name
+– Message Data
+• Sending messages
+– Message Data
+– Topic as Message Data
+
+15
+
+Pypubsub Documentation, Release 4.0.3
+
+– Sending vs Broadcasting
+• Handling messages
+– Message Data
+
+Subscribing to Topics
+Every message that can be sent via PyPubSub is of a specific topic, just as every object in Python is of a specific type.
+Use pub.subscribe(callable, 'topic-path') to subscribe callable to all messages of given topic or any
+of its subtopics.
+Callable
+The callable can be:
+• any function
+• any method
+• any class instance that defines __call__ method
+Hence given the following definitions:
+def function(): pass
+class Foo:
+def method(self): pass
+@staticmethod
+def staticMeth(): pass
+@classmethod
+def classMeth(cls): pass
+def __call__(self): pass
+foo = Foo()
+
+the following callables could be subscribed to a PyPubSub message topic:
+function
+foo.method
+foo
+Foo.staticMeth
+Foo.classMeth
+
+PyPubSub holds listeners by weak reference so that the lifetime of the callable is not affected by PyPubSub: once
+the application no longer references the callable, it can be garbage collected and PyPubSub can clean up so it is no
+longer registered (this happens thanks to the weakref module). Without this, it would be imperative to remember to
+unsubscribe certain listeners, which is error prone; they would end up living until the application exited.
+A nice example of this is a user control (widget) in a GUI: if a method of the user control is registered as listener in
+PyPubSub, and the control is discarded, the application need not explicitly unregister the callable: the weak referencing
+will allow the widget to be garbage collected; otherwise, it would remain visible until explicit unsubscription.
+
+16
+
+Chapter 3. Use
+
+Pypubsub Documentation, Release 4.0.3
+
+Warning: One caveat that results from this useful feature is that all callables that subscribe to topics must be referenced from outside PyPubSub. For instance, the following will silently unsubscribe on return from pub.subscribe():
+def listener(): pass
+def wrap(fn):
+def wrappedListener():
+fn()
+return wrappedListener
+pub.subscribe(wrap(listener), 'topic')
+
+since wrap() returns an object which only PyPubSub references: the wrappedListener gets garbage collected upon
+return from subscribe(). It is possible to verify that the stored listener is indeed dead:
+ll,ok = pub.subscribe(wrap(listener), 'topic')
+print ll.isDead() # prints True
+
+Compare without wrapping:
+ll,ok = pub.subscribe(listener, 'topic')
+print ll.isDead() # prints False
+
+Fix by storing a strong reference to wrappedListener:
+ww = wrap(listener) # creates strong reference
+ll,ok = pub.subscribe(ww, 'topic')
+print ll.isDead() # prints False
+
+Topic Name
+Every topic has a name and a path. The name can contain any character a-z, A-Z, 0-9 and _&%$#@ and the hyphen.
+Valid examples are:
+'asdfasdf'
+'aS-fds0-123'
+'_&%$#@-abc-ABC123'
+
+Other characters will lead to an exception or undefined behavior.
+Topics form a hierarchy:
+• every topic can be child of a “parent” topic
+• a topic that does not have a parent topic is a “root” topic
+• every topic can have one or more “children” i.e. sub topics
+The fully qualified topic name is therefore the path through the topic hierarchy. The path separator is ‘.’. Hence given
+the following topic hierarchy:
+root-topic-1
+sub-topic-2
+sub-sub-topic-3
+
+the following subscriptions could be valid:
+pub.subscribe(callable, 'root-topic-1')
+pub.subscribe(callable, 'root-topic-1.sub-topic-2')
+pub.subscribe(callable, 'root-topic-1.sub-topic-2.sub-sub-topic-3')
+
+3.1. Basic Usage
+
+17
+
+Pypubsub Documentation, Release 4.0.3
+
+Message Data
+Messages of a given topic can carry data. Which data is required and which is optional is known as the Message Data
+Specification for the topic, or MDS for short. Unless your application explicitly defines the MDS for every topic in the
+hierarchy, PyPubSub infers the MDS of each topic based on the first pub.subscribe() or the first pub.sendMessage() for
+the topic, whichever occurs first during an application run. Once defined, a topic’s MDS never changes (during a run).
+Examples of MDS inferred from a call to pub.subscribe():
+Callable signature
+callable(arg1)
+
+MDS (inferred)
+• required: arg1
+• optional: none
+
+callable(arg3=1)
+
+• required: none
+• optional: arg3
+
+callable(arg1, arg2, arg3=1,
+arg4=None)
+
+• required: arg1, arg2
+• optional: arg3, arg3
+
+All subsequent calls to pub.subscribe() for the same topic or any subtopic must be consistent with the topic’s MDS. If a
+subscription specifies a callable that does not match the given topic’s MDS, PyPubSub raises an exception. Therefore,
+the pub.subscribe() calls above could be valid; they will be valid if the given callable satisfies the given topic’s MDS.
+Examples of subscriptions: assume MDS of topic ‘root’ is required=arg1, optional=arg2, then pub.subscribe(callable,
+‘root’) for the following callable signatures are ok:
+Callable
+callable(arg1, arg3=1)
+callable(arg1=None,
+arg3=None)
+callable(arg1)
+callable(arg1, arg2)
+
+OK
+Yes
+Yes
+No
+No
+
+Why
+matches MDS
+signature is less restrictive than MDS, and default value are not part of
+MDS
+arg2 could be in message, yet callable does not accept it
+callable requires arg2, but MDS says it won’t always be given in message
+
+A callable subscribed to a topic is a listener.
+Note that the default value for an optional message data is not part of the MDS. Each listener can therefore decide
+what default value to use if the data is not provided in the message.
+Sending messages
+Use pub.sendMessage('topic-path-name', **data) to send a message with the given data. The topic
+path name is a dot-separated sequence of topic names from root to topic (see Topic Name).
+The message is sent to all registered listeners of given topic, parent topic, and so forth up the “topic tree”, by calling
+each listener, in turn, until all listeners have been sent the message and data. A listener must return before the next
+listener can be called. The order of listeners (within a topic or up the tree) is not specified. The sender should not make
+any assumptions about the order in which listeners will be called, or even which ones will be called. If a listener leaks
+an exception, PyPubSub catches it and interrupts the send operation, unless an exception handler has been defined.
+This is discussed in Naughty Listeners: Trap Exceptions.
+
+18
+
+Chapter 3. Use
+
+Pypubsub Documentation, Release 4.0.3
+
+Message Data
+The data must satisfy the topic’s MDS, and all arguments must be named. So for a topic ‘root’ with MDS of arg1,
+arg2 required and arg3 optional, the send command would have the form:
+pub.sendMessage('root', arg1=obj1, arg2=obj2, arg3=obj3)
+
+One consequence of this is that the order of arguments does not matter:
+pub.sendMessage('root', arg3=obj3, arg2=obj2, arg1=obj1)
+
+is equally valid. But
+pub.sendMessage('root', obj1, obj2, arg3=obj3)
+
+is not allowed.
+Only the message data relevant to a topic is sent to the listeners of the topic. For example if topic ‘root.sub.subsub’
+has a MDS involving data arg1, arg2 and arg3, and topic ‘root’ has only arg1, then listeners of ‘root.sub.subsub’ topic
+will get called with arg1, arg2, and arg3, but listeners of ‘root’ will get called with the arg1 parameter only. The less
+specific topics have less data.
+Since messages of a given topic are sent not only to listeners of the topic but also to listeners of topic up the topic
+tree, PyPubSub requires that subtopic MDS be the same or more restrictive as that of its parent: optional arguments
+can become required, but required arguments cannot become optional. Indeed if ‘root’ messages require arg1, then
+‘root.sub’ must also require it; otherwise a message of type ‘root.sub’ could be sent without an object for arg1, and
+once the ‘root’ listeners received the message, they could find the required parameter missing. If ‘root’ messages have
+arg2 as optional data, then ‘root.sub’ can be more restrictive and require it.
+Examples of subtopic MDS: assume topic ‘root’ has MDS required arg1 and optional arg2. Then following ‘root.sub’
+MDS would be
+Case
+1
+
+2
+
+MDS extended by
+• required arg3
+• optional arg4
+• optional arg3
+• optional arg4
+
+OK
+Yes
+
+Why
+Extends MDS of ‘root’
+
+No
+
+Less restrictive than
+‘root’: arg3 could be
+missing from ‘root.sub’
+message
+
+Topic as Message Data
+If a listener requires to know the topic of the message, a specially named default value pub.AUTO_TOPIC can be
+used for one of its call parameters: at call time, PyPubSub will replace the value by the pub.TopicObj object for the
+topic. It can be queried to find the topic name via Topic.getName():
+def listener(topic=pub.AUTO_TOPIC):
+print "real topic is", topic.getName()
+pub.subscribe(listener, "some_topic")
+pub.sendMessage("some_topic") # no data
+
+This allows each listener to define whether it needs the topic information (rarely the case). Therefore, it is not part of
+the MDS. In the above example, the MDS for ‘some_topic’ is empty.
+
+3.1. Basic Usage
+
+19
+
+Pypubsub Documentation, Release 4.0.3
+
+Sending vs Broadcasting
+The pub.sendMessage() shares some similarities and differences with “broadcasting”. Some similarities:
+• All callables subscribed to the topic will receive the message; in broadcasting, all receivers tuned in to the
+emitter frequency will receive the data. Hence the topic is akin to the radio frequency of the broadcast.
+• The sender has no knowledge of which listeners are subscribed to a topic; in broadcasting, the emitter does not
+know which receivers are “tuned in”
+• The order in which listeners receive the broadcast is undefined. In broadcasting, distance to the emitter affects
+when the receiver will get the message, and the emitter has no knowledge of where receivers are located, so it
+can’t know which receiver will hear the message first.
+• The listener does not know the source of messages. In broadcasting, the receiver has no way of knowing which
+emitter is the source of a given message: it will capture all messages from different emitters sa though that had
+all been generated by the same emitter, as long as they are of the same frequency.
+• Listeners to not send any data back to the sender as part of the message delivery. In broadcasting, the receiver
+does not send any data back to the emitter as part of the message.
+Some differences:
+• A message sent to a listener must be processed before it can be sent to another listener of same topic. In
+broadcasting, all receivers can process the message simultaneously.
+• The listener cannot send data back to the sender: the sender is the line of code that calls pub.sendMessage(), this
+is not a callable nor is it subscribed to the topic of the message sent. In broadcasting, the receiver can transmit
+over the same frequency as received message, and the emitter could (if it has reception capability and is tuned
+to same frequency) read the message.
+• Listeners of parent topics will get messages for subtopics. In broadcasting, there is no analogy of “subfrequencies”.
+Handling messages
+A callable subscribed to a topic receives a message by being called. Assuming that the send command is:
+pub.sendMessage('topic-path-name', **data)
+
+then all listeners subscribed to the named topic will get called with the given **data dictionary, as well as all listeners
+of the topic’s parent topic, and so forth until the root topic is reached.
+Warning: A listener should not make any assumptions about:
+• The order of calls of listeners subscribed to same or other topics
+• Where the message originates
+
+Message Data
+Only the portion of data that is relevant to the topic is given to each listener. Assume the following topic branch of the
+hierarchy:
+
+20
+
+Chapter 3. Use
+
+Pypubsub Documentation, Release 4.0.3
+
+tt: listeners a and b; MDS is r=arg1, o=arg4
+uu: listeners c and d; MDS is r=(arg1, arg2), o=(arg4, arg5)
+vv: listeners e and f; MDS is r=(arg1, arg2, arg3), o=(arg4, arg5, arg6)
+
+then
+pub.sendMessage('root-topic', arg1=1, arg2=2, arg3=3, arg4=4, arg5=5,
+arg6=6) will call
+• e(arg1=1, arg2=2, arg3=3, arg4=4, arg5=5, arg6=6); same with f; implicitly the topic is
+tt.uu.vv
+• c(arg1=1, arg2=2, arg4=4, arg5=5); same with d; implicitly the topic is tt.uu
+• a(arg1=1, arg4=4); same with b; implicitly the topic is tt
+As stated in the ‘Sending Messages’ section, the order in which the listeners are called is not specified; your application
+should not make any assumptions about this order.
+
+3.1.2 Quick Start
+Simplest example of use:
+"""
+One listener is subscribed to a topic called 'rootTopic'.
+One 'rootTopic' message gets sent.
+"""
+from pubsub import pub
+
+# ------------ create a listener -----------------def listener1(arg1, arg2=None):
+print('Function listener1 received:')
+print(' arg1 =', arg1)
+print(' arg2 =', arg2)
+
+# ------------ register listener -----------------pub.subscribe(listener1, 'rootTopic')
+# ---------------- send a message -----------------print('Publish something via pubsub')
+anObj = dict(a=456, b='abc')
+pub.sendMessage('rootTopic', arg1=123, arg2=anObj)
+
+Running the above as a script (available in the docs/usage folder of the source distribution as helloworld.py) will
+produce the result:
+Publish something via pubsub
+Function listener1 received:
+arg1 = 123
+arg2 = {'a': 456, 'b': 'abc'}
+
+3.1. Basic Usage
+
+21
+
+Pypubsub Documentation, Release 4.0.3
+
+Other Examples
+There are several examples that can be found in the source distribution in the examples folder. Some focus on the
+basics, others on more advanced aspects of PyPubSub usage. Some examples are GUI-based and may require other
+packages (such as wxPython).
+The examples/basic_kwargs folder contains examples of basic usage of PyPubSub “out of the box”, i.e. using the
+default (“kwargs”) messaging protocol. The README.txt file in examples_basic_kwargs explains:
+These two examples demonstrate a simple use of pubsub. There are two examples that can be run from this folder:
+console_main.py: basic console based, uses the console_senders.py and console_listeners.py modules.
+wx_main.py: wxPython GUI application with two windows (win1 and win2) that exchange data without any
+reference to the other. This example looks for pubsub on your system path so default install ok.
+
+3.2 Advanced Usage
+3.2.1 Debugging an application
+In this section:
+• Types of Errors
+• Notification: Tracking PyPubSub activity
+• Naughty Listeners: Trap Exceptions
+• Listen for messages from all topics
+• Using the pub.Listener class
+• Doing something with every topic
+• Printing Topic Tree
+
+Types of Errors
+While developing an application that uses PyPubSub, calls to PyPubSub functions and methods may raise an exception.
+These are discussed in:
+Types of Errors
+While developing an application that uses PyPubSub, calls to PyPubSub functions and methods may raise an exception,
+in the following circumstances:
+• the listener given to pub.subscribe() is not valid:
+– pub.ListenerMismatchError
+– ValueError
+• the data sent via pub.sendMessage() does not satisfy the topic’s MDS:
+– pub.SenderMissingReqdMsgDataError
+
+22
+
+Chapter 3. Use
+
+Pypubsub Documentation, Release 4.0.3
+
+– pub.SenderUnknownMsgDataError
+– pub.SenderTooManyKwargs
+– pub.SenderWrongKwargName
+• there is a problem with a topic name:
+– pub.TopicNameError
+– pub.TopicDefnError
+– ValueError
+• a callback registered via pub.setListenerExcHandler() raises an exception while handling an exception raised by
+a listener:
+– pub.ExcHandlerError
+• a subclass derived from a pubsub core or utils base class is missing some implementation:
+– NotImplementedError
+• a topic’s MDS, defined explicitly via TopicDefnProvider, is not valid:
+– pub.MessageDataSpecError
+– pub.UnrecognizedSourceFormatError
+For basic PyPubSub usage, the most common ones are ListenerMismatchError and the Sender... exceptions. All others are relevant to usage of more advanced PyPubSub features such as topic tree specification, listener
+exception trapping, and PyPubSub notification trapping.
+Listener Mismatch Errors
+The most common type of error results from attempting to subscribe an invalid listener: one that does not
+have a signature (call protocol) compatible with the topic’s MDS. When this happens, PyPubSub raises a pub.
+ListenerMismatchError exception.
+By default, PyPubSub infers topic MDSs. In that case, the error typically happens when more than one listener is
+registered for a given topic, and introspection of the listener identifies that it does not satisfy the topic’s MDS. For
+example, consider
+def listener0(arg1, arg2=default0): pass
+def listener1(arg1=val, arg2=default3): pass
+def listener2(arg1): pass
+def listener3(arg1, arg2): pass
+pub.subscribe(listener0, "topic") // OK: infers MDS
+pub.subscribe(listener1, "topic") // OK: satisfies MDS
+pub.subscribe(listener2, "topic") // FAIL: violates MDS
+
+PyPubSub will raise a ListenerMismatchError exception on the last line since arg2 was inferred in the first subscription,
+from listener0, as being part of the MDS, yet listener2 does not accept this data.
+Similarly, if the last line had been
+pub.subscribe(listener3, "topic")
+
+a pub.ListenerMismatchError exception would get raised because listener3 requires arg2, yet the MDS inferred from listener0 has it as optional, indicating the sender may not provide it. PyPubSub is flagging the fact that
+listener3 is “more demanding” than the MDS can guarantee.
+
+3.2. Advanced Usage
+
+23
+
+Pypubsub Documentation, Release 4.0.3
+
+Sender Exceptions
+The sender exceptions are very useful as they indicate clearly what message data is wrong:
+• pub.SenderMissingReqdMsgDataError: some required data is missing
+• pub.SenderUnknownMsgDataError: one of the keyword arguments is not part of MDS
+For example, given the previous code involving a topic “topic” MDS inferred from listener0, the following code would
+raise a pub.SenderUnknownMsgDataError
+pub.sendMessage("topic", arg1=1, arg3=3)
+
+because arg3 is not part of the MDS.
+Topic Name Errors
+A topic name must satisfy the following:
+• is not empty: ‘’ or None
+• is not a reserved name: the only one currently is the value of pub.ALL_TOPICS
+• starts with any of ‘-‘, 0-9, a-z, A-Z (so UNDERSCORE ‘_’ not allowed; it is reserved)
+This applies to all levels of a topic path, i.e. the items between ‘.’. For example the following are not allowed: ‘a.’,
+‘.a’, ‘.’, ‘a..b’, etc.
+If a topic name does not satisfy the above, PyPubSub raises pub.TopicNameError.
+Some functions in PyPubSub raise an exception if the topic doesn’t exist:
+• pub.isValid(listener, topicName)()
+• pub.validate(listener, topicName)()
+• pub.isSubscribed(listener, topicName)()
+• pub.unsubscribe(listener, topicName)()
+• pub.unsubAll(topicName)()
+since the operation does not make sense: it does not make sense, for example, to test if given listener is valid if topic
+does not exist!
+By default,
+• PyPubSub does not complain about topic names that have never been subscribed to.
+• subscribing a listener to a topic never used before ‘creates’ the topic.
+Hence there is, by default, no way of trapping the following mistakes:
+pub.subscribe(listener1, 'topic') # creates 'topic' topic
+# next line has typo in topic name:
+pub.subscribe(listener2, 'tpic')
+# creates 'tpic' topic
+pub.sendMessage('topic') # only listener1 will receive
+# next line has typo in topic name:
+pub.sendMessage('topc') # creates 'topc' topic; no listener will receive
+
+These can lead to hard-to-isolate bugs as some listeners never get the messages. To trap such typos, use pub.
+setTopicUnspecifiedFatal(true)(), and specify all allowed topics at application startup by registering a
+
+24
+
+Chapter 3. Use
+
+Pypubsub Documentation, Release 4.0.3
+
+Topic Definition Provider via pub.addTopidDefnProvider(). Both above typos will then lead to PyPubSub
+raising TopicDefnError. Note: a provider can easily be created via the pub.exportTopicTreeSpec().
+Notification: Tracking PyPubSub activity
+PyPubSub can call a specified handler every time it performs a certain task:
+• subscribe: whenever a listener subscribes to a topic
+• unsubscribe: whenever a listener unsubscribes from a topic
+• deadListener: whenever PyPubSub finds out that a listener has died
+• send: whenever the user calls sendMessage()
+• newTopic: whenever the user defines a new topic
+• delTopic: whenever the user undefines a topic
+A notification handler must adhere to the pub.INotificationHandler:
+import pubsub.utils
+class MyNotifHandler(INotificationHandler):
+def onSendMessage(...):
+...
+pub.addNotificationHandler( MyNotifHandler() )
+
+A simple handler class is available already in pubsub.utils: notification.NotifyByPubsubMessage.
+This handler takes each notification received and generates a PyPubSub message of a “pubsub.” topic named after the
+operation, such as “pubsub.subscribe”. To use notification via this notifier, you must register one or more listeners for
+the “pubsub.*” topics of interest.
+A utility function is available from pubsub.utils for the most common case:
+from pubsub.utils import notification
+notification.useNotifyByPubsubMessage()
+
+Naughty Listeners: Trap Exceptions
+A sender has no way of knowing what can go wrong during message handling by the subscribed listeners. As a result,
+a listener must not raise any exceptions (or rather, must not let any exceptions escape): if an exception does escape a
+listener, it interrupts the pub.sendMessage() call such that some listeners may not be sent the message. Putting
+a try/except clause around every sendMessage is typically not practical.
+Since exceptions are common during application development (bugs due to invalid arguments, failed assertions, etc.),
+PyPubSub provdes a hook to register a ‘listener exception’ handler: whenever a listener raises an exception, PyPubSub
+then sends it to the handler, and continues with the send operation until all listeners have received the message. The
+handler might print it to a log file, output a message in a status bar, show an error box, etc. The handling itself is very
+application-specific, hence this strategy.
+The handler must adhere to the pub.IListenerExcHandler protocol. An instance of the handler can be given
+to pub.setListenerExcHandler().
+
+3.2. Advanced Usage
+
+25
+
+Pypubsub Documentation, Release 4.0.3
+
+Listen for messages from all topics
+PyPubSub defines a special topic named pub.ALL_TOPICS. A listener that subscribes to this topic will receives all
+messages of every topic. By default, the listener will not receive any data since pub.ALL_TOPICS is the parent of all
+root topics: its MDS must be empty.
+However, any listener that is a callable with a “catch-all” **kwargs parameter will be given all message data. Moreover, PyPubSub sends the topic object automatically with the message data if it finds that listener accepts a keyword
+argument with a default value of pub.AUTO_TOPIC. Together, these can be used to obtain complete information about
+all messages:
+>>> def snoop(topicObj=pub.AUTO_TOPIC, **mesgData):
+>>>
+print 'topic "%s": %s' % (topicObj.getName(), mesgData)
+>>>
+>>> pub.subscribe(snoop, pub.ALL_TOPICS)
+(<pubsub.core.listenerimpl.Listener instance at 0x01A040A8>, True)
+>>> pub.sendMessage('some.topic.name', a=1, b=2)
+topic "some.topic.name": {'a': 1, 'b': 2}
+
+Using the pub.Listener class
+Every callable that is subscribed via pub.subscribe() is wrapped in a pub.Listener instance returned by this function.
+This class has several useful functions such as name(), typeName(), module(), and isDead(). For example:
+>>> def snoop(topicObj=pub.AUTO_TOPIC, **mesgData):
+>>>
+pass
+>>>
+>>> pubListener, first = pub.subscribe(snoop, pub.ALL_TOPICS)
+>>> assert first == true # since first time subscribed
+>>> assert pubListener.isDead() == false
+>>> assert pubListener.wantsTopicObjOnCall() == true
+>>> assert pubListener.wantsAllMessageData() == true
+>>> print pubListener.name()
+snoop_2752
+>>> print pubListener.name()
+snoop
+
+Doing something with every topic
+Derive from pub.ITopicTreeVisitor and give instance to an instance of pub.TopicTreeTraverser, then call traverse()
+method. For example, assume a callable ‘listener’ has been subscribed to several topics. An easy way to verify all
+topics subscribed to use this:
+>>> class MyVisitor(pub.ITopicTreeVisitor):
+>>>
+def __init__(self, listener):
+>>>
+self.subscribed = []
+>>>
+self.listener = listener
+>>>
+def _onTopic(self, topicObj):
+>>>
+if topicObj.hasListener(self.listener):
+>>>
+self.subscribed.append(topicObj.getName())
+>>>
+>>> tester = new MyVisitor(listener)
+>>> traverser = pub.TopicTreeTraverser( tester )
+>>> traverser.traverse(pub.getDefaultTopicTreeRoot())
+(continues on next page)
+
+26
+
+Chapter 3. Use
+
+Pypubsub Documentation, Release 4.0.3
+
+(continued from previous page)
+
+>>> print tester.subscribed
+['topic-name', 'topic-name2', ...]
+
+Printing Topic Tree
+See pubsub.utils.printTreeDocs().
+
+3.2.2 Maintainabiity
+In this section:
+• Specify topic tree def
+– Topic Definition Providers
+
+Specify topic tree def
+Topic Specification can be used to have better control over your topic hierarchy. If you don’t specify your application’s
+topics, PyPubSub infers them from the first subscribed listener of each topic. E.g.:
+def listener1(arg1,
+arg2=None): pass
+def listener2(arg1=None, arg2=None): pass
+pub.subscribe(listener1, 'topic.sub')
+pub.subscribe(listener2, 'topic.sub')
+
+Because listener1 is the first to be subscribed to ‘topic.sub’ topic, PyPubSub uses it to infer the specification of
+‘topic.sub’: the specification is “messages of that topic must provide data for arg1, and may provide data for arg2”.
+The second listener subscribed, listener2, is allowed to subscribe because it is compatible with the topic’s specification
+created at the previous call. What if your intent was that arg1 is optional as well, i.e. the signature of listener1 is wrong
+(it should provide a default value for arg1)? Or what if per chance listener2 gets subscribed first (could happen if both
+are subscribed in different modules whose load order changes)?
+The only way to not depend on the order of subscription of listeners is to use Topic definition providers (TDP). This is
+described below.
+Topic Definition Providers
+The easiest way to understand a topic tree definition is to get PyPubSub to output one for your
+application via pub.exportTopicTreeSpec().
+Here is an example, taken from the file examples/advanced/kwargs_topics.py generated by that function, assuming two root topics ‘topic_1’ and ‘topic_2’ and
+the call pub.exportTopicTreeSpec('kwargs_topics'):
+# Automatically generated by TopicTreeSpecPrinter(**kwargs).
+# The kwargs were:
+# - fileObj: file
+# - width: 70
+# - treeDoc: None
+# - indentStep: 4
+(continues on next page)
+
+3.2. Advanced Usage
+
+27
+
+Pypubsub Documentation, Release 4.0.3
+
+(continued from previous page)
+
+# - footer: '# End of topic tree definition. Note that application may l...'
+
+class topic_1:
+"""
+Explain when topic_1 should be used
+"""
+def msgDataSpec(msg):
+"""
+- msg: a text string message for recipient
+"""
+class subtopic_11:
+"""
+Explain when subtopic_11 should be used
+"""
+def msgDataSpec(msg, msg2, extra=None):
+"""
+- extra: something optional
+- msg2: a text string message #2 for recipient
+"""
+
+class topic_2:
+"""
+Some something useful about topic2
+"""
+def msgDataSpec(msg=None):
+"""
+- msg: a text string
+"""
+class subtopic_21:
+"""
+description for subtopic 21
+"""
+def msgDataSpec(msg, arg1=None):
+"""
+- arg1: UNDOCUMENTED
+"""
+# End of topic tree definition. Note that application may load
+# more than one definitions provider.
+
+This shows how the topic definition tree is defined using a Python module with a nested class tree that represents the
+topics, and msgDataSpec() functions that represent the listener signatures for the given topics. This also shows how it
+is possible to document each topic and message datum.
+An application uses the above module via the following:
+import kwargs_topics
+pub.addTopicDefnProvider( kwargs_topics, pub.TOPIC_TREE_FROM_CLASS )
+
+28
+
+Chapter 3. Use
+
+Pypubsub Documentation, Release 4.0.3
+
+The format type is pub.TOPIC_TREE_FROM_CLASS because once imported, the kwargs_topics object is a module
+containing topic definitions as classes; based on that setting, PyPubSub will look for all classes in the kwargs_topics
+object, and instantiate one topic definition for each one.
+See examples/advanced/main_kwargs.py for an example of using a topic tree definition in an application.
+It is possible to support other formats for topic tree definition.
+For example, pubsub.utils.
+XmlTopicDefnProvider was contributed to PyPubSub by one of its devoted users. A new type of provider
+need only adhere to the pub.ITopicTreeDefnProvider interface; pub.addTopicDefnProvider() accepts any instance that implements from that interface:
+xmlString = open('xml_topics.xml', 'r').read()
+provider = XmlTopicDefnProvider(xmlString)
+pub.addTopicDefnProvider( provider )
+
+It is typically useful to combine topic tree definition with the following call, placed once at the beginning of an
+application:
+pub.setTopicUnspecifiedFatal(True)
+
+Then any attempt to use a topic that is not defined in the topic tree definition will raise an pub.
+TopicUnspecifiedError.
+Note that any topic that does not have a docstring is not considered to be defined. This may allow for some temporary
+“undefining” of topics.
+
+3.2.3 Other
+In this section:
+• Dev app (process)
+• Messaging Protocol
+• API Versions
+• Receiving all data of a message
+
+Dev app (process)
+Suggestions while developing application that uses PyPubSub:
+• Design your application into independent modules or subpackages that don’t import one another
+• Define basic topics exist in the application: ‘user’ (events from user interface), ‘filesystem’ (events from local
+filesystem), etc. These are your messaging topics. You may find it useful to use printTreeDocs from
+pubsub.utils.
+• Use Topic Definition Providers as eary as possible. Use pub.exportTopicTreeSpec() if already have partial
+implementation, and pub.addTopicDefnProvider() and pub.setTopicUnspecifiedFatal().
+• Start all listener functions and methods with pubOn, for instance def psOnCloseDocument()
+• Define some data for each message type, and which data are optional/required
+• Implement your modules
+– Subscribe listeners with appropriate signature (according to data for each topic/event type)
+3.2. Advanced Usage
+
+29
+
+Pypubsub Documentation, Release 4.0.3
+
+– Send messages with appropriate data
+– Handle messages in listeners, without making any assumptions about sender or order of receipt
+• Testing: import your control modules and generate messages to exercise them.
+You can see a very informative view of an application before and after incorporatng PyPubSub, at Steven Sproat’s dev
+site (click “expand all” and “show diffs side-by-side”). Steven says:
+You can see how I removed some GUI logic from the Canvas class (a child of the GUI) and placed
+“controller” functions into my GUI that subscribed to PyPubSub topics and delegates to the appropriate
+classes.
+Messaging Protocol
+The very first version of PyPubSub supported a messaging protocol that became known as ‘arg1’. This protocol made
+it difficult to specify (i.e. define) what data was allowed in a topic. For larger applications, the developer had to put in
+verification code in the listener, had to deal with exceptions resulting from mismatches in field names in the message
+object, etc. It worked but made debugging the use of topics and PyPubSub messages complicated.
+The kwargs protocol was then designed: it allows the sender to name each datum, and the recipient (listener) to be
+checked via introspection at subscription time for its capability to receive the data. It also makes it easier to document
+the message data, and to specify it. The protocol was implemented in PyPubSub version 3.
+PyPubSub v4 supports only one way of transmitting data to listeners, namely via the ‘kwargs’ protocol. Since this is
+the only protocol supported, there is no code left that handles protocol name or selection.
+API Versions
+As PyPubSub matured, its API went through changes:
+• API version 1 (PyPubSub v1): the version that was part of wxPython and supported only the arg1 protocol.
+• API version 2 (PyPubSub v2): also part of wxPython, it made various improvements on v1 but was short lived
+as it did not properly address some inherent limitations of version 1.
+• API version 3 (PyPubSub v3): PyPubSub was moved out of wxPython to be a standalone project and supported 2
+messaging protocols: the original arg1 for backwards compatibility, and the new kwargs. Since then, wxPython’s
+wx.lib.pubsub is a verbatim copy of the standalone PyPubSub. The arg1 protocol was deprecated.
+• API version 4 (PyPubSub v4): Support for arg1 was dropped; only kwargs is now supported, which simplifies
+the code base considerably.
+Receiving all data of a message
+If a Listener uses **kwargs then it will be given all data of a message, not just the portion specific to the topic it is
+subscribed to. For example,
+>>> def listener0(arg1, arg2): print('listener0: ', arg1, arg2)
+>>> def listener1(**kwargs): print('listener1: ', kwargs)
+>>> pub.subscribe(listener0, 'topic')
+>>> pub.subscribe(listener1, 'topic')
+>>> pub.sendMessage('topic', arg1=1, arg2=2)
+
+Then listener1 will receive arg1 and arg2.
+Note: as explained in Specify topic tree def , PyPubSub infers a topic’s Message Data Specification based on the first
+listener subscribed, unless there is a Topic Definition Provider for the topic. In the above example, PyPubSub would
+30
+
+Chapter 3. Use
+
+Pypubsub Documentation, Release 4.0.3
+
+infer that topic has 2 required data: arg1 and arg2. However, if listener1 were subscribed first, PyPubSub would infer
+that topic had no required data (because there are no positional parameters in the listener1 signature), and no optional
+data (because there are no parameters with default values in the the listener1 signature). Thus the subscription of
+listener0 to topic would raise an exception (because listener0 requires arg1 and arg2). In real-world code, it can be
+difficult to guarantee the order of registration of listeners. Such issue is one of the intended use cases for a Topic
+Definition Provider, as explained in Specify topic tree def .
+
+3.3 How Tos
+This section provides “recipes” for various tasks such as migrating an application from one PyPubSub version or
+messaging protocol to another.
+
+3.3.1 Migrations
+In the very first version of PyPubSub, v1, message data was transported via a single instance of a class called Message.
+This had several important limitations, most importantly the inability to validate whether the correct data fields were
+being included in a message sent.
+In PyPubSub v3, a new protocol was implemented, and was named kwargs. This was not compatible with v1, but
+v3 made it possible to configure the imported pubsub to select either the arg1 protocol or the kwargs protocol, and to
+configure PyPubSub to help with transition from one to the other.
+PyPubSub v4 only supports the kwargs protocol. If you want to upgrade your application from using PyPubSub v1 or
+v3 to v4 and it uses the arg1 protocol, you will have to do the transition via PyPubSub 3.3, as explained at length in
+the documentation for that version (specifically, see the section label-migrations)
+Please post on the list for any additional support needed on this topic.
+
+3.4 Reference
+The pubsub package contains the following:
+
+3.4.1 Pub Module
+This is the main entry-point to pubsub’s core functionality. The pub module supports:
+• messaging: publishing and receiving messages of a given topic
+• tracing: tracing pubsub activity in an application
+• trapping exceptions: dealing with “badly behaved” listeners (ie that leak exceptions)
+• specificatio of topic tree: defining (or just documenting) the topic tree of an application; message data specification (MDS)
+The recommended usage is
+from pubsub import pub
+// use pub functions:
+pub.sendMessage(...)
+
+3.3. How Tos
+
+31
+
+Pypubsub Documentation, Release 4.0.3
+
+Note that this module creates a “default” instance of pubsub.core.Publisher and binds several local functions to some
+of its methods and those of the pubsub.core.TopicManager instance that it contains. However, an application may
+create as many independent instances of Publisher as required (for instance, one in each thread; with a custom queue
+to mediate message transfer between threads).
+pubsub.pub.VERSION_API = 4
+major API version
+The PyPubSub API version. This is deprecated. The only valid value currently is the integer 4. Previously, versions 1, 2 and 3 API could also be activated in PyPubSub before importing pub, in which case
+pub.VERSION_API had the corresponding value.
+Sending Messages
+Sending messages is achieved via the following function:
+pubsub.pub.sendMessage(topicName, **kwargs)
+Send a message. :param topicName: name of message topic (dotted or tuple format) :param msgData: message
+data (must satisfy the topic’s MDS)
+The following exception may be raised when sending a message, if the message data does not comply with the Message
+Data Specification for the topic:
+exception pubsub.pub.SenderMissingReqdMsgDataError(topicName:
+str, argNames:
+Sequence[str], missing:
+Sequence[str])
+Bases: RuntimeError
+Raised when a sendMessage() is missing arguments tagged as ‘required’ by pubsub topic of message.
+exception pubsub.pub.SenderUnknownMsgDataError(topicName:
+str, argNames:
+Sequence[str], extra: Sequence[str])
+Bases: RuntimeError
+Raised when a sendMessage() has arguments not listed among the topic’s message data specification (MDS).
+Advanced use:
+The following would typically only be useful in special circumstances, such as if PyPubSub’s default Publisher must
+be accessed, on or more separate instances of Publisher is required, and so forth.
+pubsub.pub.getDefaultPublisher() → pubsub.core.publisher.Publisher
+Get the Publisher instance created by default when this module is imported. See the module doc for details
+about this instance.
+class pubsub.core.Publisher(treeConfig: pubsub.core.topicmgr.TreeConfig = None)
+Represent the class that send messages to listeners of given topics and that knows how to subscribe/unsubscribe
+listeners from topics.
+See pubsub.core.Publisher for details.
+Receiving Messages
+The following functions are available for controlling what callable objects (functions, methods, or class instances with
+a __call__ method) will get called when messages are generated:
+pubsub.pub.subscribe(listener, topicName)
+Subscribe listener to named topic. Raises ListenerMismatchError if listener isn’t compatible with the topic’s
+MDS. Returns (pubsub.core.Listener, success), where success is False if listener was already subscribed. The
+
+32
+
+Chapter 3. Use
+
+Pypubsub Documentation, Release 4.0.3
+
+pub.core.Listener wraps the callable subscribed and provides introspection-based info about the callable. Extra
+keyword arguments are treated as currying of listener arguments.
+Example: pub.subscribe(listener1, ‘some_topic’) pub.subscribe(listener2, ‘some_other_topic’, a=2, b=3)
+In the second example, the listener2 will always receive a=2 and b=3 and pubsub treats it as though a and b
+were curried, i.e. as if the actual listener subscribed were a callable that did not have a or b parameters. Hence
+if some_other_topic has a or b as message data, subscription will raise a ListenerInadequate error.
+Note that if ‘subscribe’ notification is on, the handler’s ‘notifySubscribe’ method is called after subscription.
+pubsub.pub.unsubscribe(listener, topicName)
+Unsubscribe from given topic. Returns the pubsub.core.Listener instance that was used to wrap listener at
+subscription time. Raises an TopicNameError if topicName doesn’t exist.
+Note that if ‘unsubscribe’ notification is on, the handler’s notifyUnsubscribe() method will be called after unsubscribing.
+pubsub.pub.unsubAll(topicName=None, listenerFilter=None, topicFilter=None)
+Unsubscribe all listeners of a topic.
+Parameters
+• topicName – if none given, unsub from all topics.
+• listenerFilter – filter function to apply to listeners, unsubscribe only the listeners
+that satisfy listenerFilter(listener: Listener) == True
+• topicFilter – topic name, or a filter function to apply to topics; in latter case, only
+topics that satisfy topicFilter(topic name) == True will be affected
+Returns list of all listeners (instances of pub.Listener) that were unsubscribed from the topic tree
+Note: this method will generate one ‘unsubcribe’ notification message (see pub.setNotificationFlags()) for each
+listener unsubscribed.
+pubsub.pub.isSubscribed(listener, topicName) → bool
+Returns true if listener has subscribed to topicName, false otherwise. WARNING: a false return is not a guarantee that listener won’t get messages of topicName: it could receive messages of a subtopic of topicName.
+The following exceptions are relevant:
+exception pubsub.pub.ListenerMismatchError(msg: str, listener: Callable[..., Any], *args)
+Bases: ValueError
+Raised when an attempt is made to subscribe a listener to a topic, but listener does not satisfy the topic’s message
+data specification (MDS). This specification is inferred from the first listener subscribed to a topic, or from an
+imported topic tree specification (see pub.addTopicDefnProvider()).
+exception pubsub.pub.MessageDataSpecError(msg: str, args: Sequence[str])
+Bases: RuntimeError
+Raised when an attempt is made to define a topic’s Message Data Specification (MDS) to something that is not
+valid.
+The keyword names for invalid data go in the ‘args’ list, and the msg should state the problem and contain “%s”
+for the args, such as MessageDataSpecError(‘duplicate args %s’, (‘arg1’, ‘arg2’)).
+pubsub.pub.AUTO_TOPIC
+Use this as default parameter in a listener’s signature: the listener will be given the Topic object of the message.
+The following additional functions may be useful during debugging:
+pubsub.pub.isValid(listener, topicName, curriedArgNames=None) → bool
+Return true only if listener can subscribe to messages of given topic. If curriedArgNames can be a list of
+
+3.4. Reference
+
+33
+
+Pypubsub Documentation, Release 4.0.3
+
+parameters of the given listener, that should be assumed curried (i.e. actual listener signature is signature of
+given listener minus curried args).
+pubsub.pub.validate(listener, topicName, curriedArgNames=None)
+Checks if listener can subscribe to topicName. If not, raises ListenerMismatchError, otherwise just returns. The
+curriedArgNames is same as for isValid().
+exception pubsub.pub.TopicDefnError(topicNameTuple: Sequence[str])
+Bases: RuntimeError
+Raised when an operation requires a topic have an MDS, but it doesn’t. See also pub.setTopicUnspecifiedFatal().
+Advanced use:
+The following are not typically required but can be useful in certain circumstances, especially during debugging:
+class pubsub.core.Listener(callable_obj:
+Callable[...,
+Any],
+argsInfo:
+pubsub.core.callables.CallArgsInfo, curriedArgs: Mapping[str, Any]
+= None, onDead: Callable[[pubsub.core.listener.Listener], None] =
+None)
+Wraps a callable (UserListener) so it can be stored by weak reference and introspected to verify that it adheres
+to a topic’s MDS.
+A Listener instance has the same hash value as the callable that it wraps.
+Callables that have ‘argName=pub.AUTO_TOPIC’ as a kwarg will be given the Topic object for the message
+sent by sendMessage(). Such a Listener will have wantsTopicObjOnCall() True.
+Callables that have a ‘** kargs’ argument will receive all message data, not just that for the topic they are
+subscribed to. Such a listener will have wantsAllMessageData() True.
+See pubsub.core.Listener for details.
+pubsub.core.getListenerID(callable_obj: Callable[..., Any]) → Tuple[str, module]
+Get “ID” of a callable, in the form of its name and module in which it is defined E.g. getID(Foo.bar) returns
+(‘Foo.bar’, ‘a.b’) if Foo.bar was defined in module a.b. :param callable_obj: a callable, ie function, bound
+method or callable instance
+Topics
+In most cases, topics are used by name in dotted string format. The following may be useful for basic PyPubSub use:
+exception pubsub.pub.TopicNameError(name: str, msg: str)
+Bases: ValueError
+Raised when the topic name is not properly formatted or no corresponding Topic object found.
+Advanced use:
+Some advanced uses of PyPubSub, especially (but not only) for debugging a PyPubSub-based application, could
+require access to the associated Topic instance, topic tree manager, special topic-related constants, or other helper
+functions and classes.
+class pubsub.pub.TopicTreeTraverser(visitor: pubsub.core.topictreetraverser.ITopicTreeVisitor
+= None)
+Supports taking action on every topic in the topic tree. The traverse() method traverses a topic tree and
+calls visitor._onTopic() for each topic in the tree that satisfies visitor._accept(). Additionally it calls visitor._startChildren() whenever it starts traversing the subtopics of a topic, and visitor._endChildren() when it
+is done with the subtopics. Finally, it calls visitor._doneTraversal() when traversal has been completed. The
+visitor must therefore adhere to the ITopicTreeVisitor interface.
+
+34
+
+Chapter 3. Use
+
+Pypubsub Documentation, Release 4.0.3
+
+pubsub.pub.ALL_TOPICS
+Name of topic that is root of topic tree. Subscribe a listener to this topic to get all PyPubSub messages. Use
+**kwargs to receive all message data, regardless of topic.
+pubsub.pub.topicTreeRoot
+The topic object that is parent of all root topics. The name of this topic is pub.ALL_TOPICS.
+pubsub.pub.topicsMap
+The dictionary that maps topic names to Topic objects.
+Advanced use:
+The following are not typically required but can be useful in certain circumstances, such as during debugging:
+pubsub.pub.getDefaultTopicMgr() → pubsub.core.topicmgr.TopicManager
+Get the TopicManager instance created by default when this module is imported. This function is a shortcut for
+pub.getDefaultPublisher().getTopicMgr().
+class pubsub.core.TopicManager(treeConfig: pubsub.core.topicmgr.TreeConfig = None)
+Manages the registry of all topics and creation/deletion of topics.
+Note that any method that accepts a topic name can accept it in the ‘dotted’ format such as 'a.b.c.' or in
+tuple format such as ('a', 'b', 'c'). Any such method will raise a ValueError if name not valid (empty,
+invalid characters, etc).
+See pubsub.core.TopicManager for details.
+class pubsub.core.Topic(treeConfig: pubsub.core.topicobj.TreeConfig, nameTuple: Tuple[str, ...],
+description: str, msgArgsInfo: pubsub.core.topicargspec.ArgsInfo, parent:
+pubsub.core.topicobj.Topic = None)
+Represent topics in pubsub. Contains information about a topic, including topic’s message data specification
+(MDS), the list of subscribed listeners, docstring for the topic. It allows Python-like access to subtopics (e.g.
+A.B is subtopic B of topic A).
+See pubsub.core.Topic for details.
+Listener Exception Handling
+Listeners that leak exceptions are typically burried deep into the stacktrace, and can cause an application to abort. The
+following may simplify the task of providing useful error messages from misbehaved listeners, without interrupting
+the application or even the PyPubSub send-message:
+pubsub.pub.getListenerExcHandler()
+Get the listener exception handler that was registered via setListenerExcHandler(), or None of none registered.
+pubsub.pub.setListenerExcHandler(handler)
+Set the function to call when a listener raises an exception during a sendMessage().
+class pubsub.pub.IListenerExcHandler
+Interface class base class for any handler given to pub.setListenerExcHandler() Such handler is called whenever
+a listener raises an exception during a pub.sendMessage(). Example:
+from pubsub import pub
+class MyHandler(pub.IListenerExcHandler):
+def __call__(self, listenerID, topicObj):
+... do something with listenerID ...
+pub.setListenerExcHandler(MyHandler())
+
+Without an exception handler, the sendMessage() will fail.
+3.4. Reference
+
+35
+
+Pypubsub Documentation, Release 4.0.3
+
+exception pubsub.pub.ExcHandlerError(badExcListenerID:
+str,
+topicObj:
+pubsub.core.topicexc.Topic, origExc: Exception = None)
+Bases: RuntimeError
+Raised when a listener exception handler (see pub.setListenerExcHandler()) raises an exception. The original
+exception is contained.
+See pubsub.utils.exchandling for ready-made exception handlers which may fit your requirements.
+PyPubSub Tracing (aka Notification)
+While debugging an application it may be useful to trap some of PyPubSub’s activity:
+class pubsub.pub.INotificationHandler
+Defines the interface expected by pubsub for pubsub activity notifications. Any instance that supports
+the same methods, or derives from this class, will work as a notification handler for pubsub events (see
+pub.addNotificationHandler).
+pubsub.pub.addNotificationHandler(handler)
+Add a handler for tracing pubsub activity.
+pubsub.pub.clearNotificationHandlers()
+Remove all notification handlers that were added via self.addNotificationHandler().
+pubsub.pub.setNotificationFlags(**kwargs)
+Set the notification flags on or off for each type of pubsub activity. The kwargs keys can be any of the following:
+• subscribe: if True, get notified whenever a listener subscribes to a topic;
+• unsubscribe: if True, get notified whenever a listener unsubscribes from a topic;
+• deadListener: if True, get notified whenever a subscribed listener has been garbage-collected;
+• sendMessage: if True, get notified whenever sendMessage() is called;
+• newTopic: if True, get notified whenever a new topic is created;
+• delTopic: if True, get notified whenever a topic is “deleted” from topic tree;
+• all: set all of the above to the given value (True or False).
+The kwargs that are not given or None are left at their current value. Those that are False will cause corresponding notification to be silenced. The ‘all’ is set first, then the others. E.g.
+mgr.setFlagStates(all=True, delTopic=False)
+will toggle all notifications on, but will turn off the ‘delTopic’ notification.
+pubsub.pub.getNotificationFlags()
+Return a dictionary with the notification flag states.
+See pubsub.utils for some ready-made notification handlers which may fit your requirements.
+Topic Specification
+Topic definition, documentation, and message data specification (MDS):
+exception pubsub.pub.TopicDefnError(topicNameTuple: Sequence[str])
+Bases: RuntimeError
+Raised when an operation requires a topic have an MDS, but it doesn’t. See also pub.setTopicUnspecifiedFatal().
+
+36
+
+Chapter 3. Use
+
+Pypubsub Documentation, Release 4.0.3
+
+pubsub.pub.exportTopicTreeSpec(moduleName:
+str
+=
+None,
+rootTopic:
+Union[pubsub.core.topicobj.Topic, str] = None, bak: str =
+’bak’, moduleDoc: str = None)
+Using TopicTreeSpecPrinter, exports the topic tree rooted at rootTopic to a Python module (.py) file. This
+module will define module-level classes representing root topics, nested classes for subtopics etc. Returns a
+string representing the contents of the file. Parameters:
+• If moduleName is given, the topic tree is written to moduleName.py in os.getcwd(). By default, it is first
+backed up, it it already exists, using bak as the filename extension. If bak is None, existing module file
+gets overwritten.
+• If rootTopic is specified, the export only traverses tree from corresponding topic. Otherwise, complete
+tree, using pub.getDefaultTopicTreeRoot() as starting point.
+• The moduleDoc is the doc string for the module ie topic tree.
+pubsub.pub.setTopicUnspecifiedFatal(newVal=True, checkExisting=True)
+Changes the creation policy for topics.
+By default, pubsub will accept topic names for topics that don’t have a message data specification (MDS).
+This default behavior makes pubsub easier to use initially, but allows topic names with typos to go uncaught in
+common operations such as sendMessage() and subscribe(). In a large application, this can lead to nasty bugs.
+Pubsub’s default behavior is equivalent to setTopicUnspecifiedFatal(false).
+When called with newVal=True, any future pubsub operation that requires a topic (such as subscribe and
+sendMessage) will require an MDS; if none is available, pubsub will raise a TopicDefnError exception.
+If checkExisting is not given or True, all existing topics are validated. A TopicDefnError exception is raised if
+one is found to be incomplete (has hasMDS() false).
+Returns previous value of newVal.
+Note that this method can be used in several ways:
+1. Only use it in your application when something is not working as expected: just add a call at the beginning
+of your app when you have a problem with topic messages not being received (for instance), and remove
+it when you have fixed the problem.
+2. Use it from the beginning of your app and never use newVal=False: add a call at the beginning of your
+app and you leave it in (forever), and use Topic Definition Providers to provide the listener specifications.
+These are easy to use via the pub.addTopicDefnProvider().
+3. Use it as in #1 during app development, and once stable, use #2. This is easiest to do in combination with
+pub.exportTopicTreeSpec().
+pubsub.pub.addTopicDefnProvider(providerOrSource, format=None)
+Register a topic definition provider. After this method is called, whenever a topic must be created, the first
+definition provider that has a definition for the required topic is used to instantiate the topic.
+If providerOrSource is an instance of ITopicDefnProvider, register it as a provider of topic definitions. Otherwise, register a new instance of TopicDefnProvider(providerOrSource, format). In that case, if format is not
+given, it defaults to TOPIC_TREE_FROM_MODULE. Either way, returns the instance of ITopicDefnProvider
+registered.
+pubsub.pub.getNumTopicDefnProviders()
+Get how many topic definitions providers are registered.
+pubsub.pub.clearTopicDefnProviders()
+Remove all registered topic definition providers
+pubsub.pub.instantiateAllDefinedTopics(provider)
+Loop over all topics of given provider and “instantiate” each topic, thus forcing a parse of the topics documenta-
+
+3.4. Reference
+
+37
+
+Pypubsub Documentation, Release 4.0.3
+
+tion, message data specification (MDS), comparison with parent MDS, and MDS documentation. Without this
+function call, an error among any of those characteristics will manifest only if the a listener is registered on it.
+exception pubsub.pub.UnrecognizedSourceFormatError
+Bases: ValueError
+Raised when a topic definition provider doesn’t recognize the format of source input it was given.
+pubsub.pub.TOPIC_TREE_FROM_MODULE = 'module'
+str(object=’‘) -> str str(bytes_or_buffer[, encoding[, errors]]) -> str
+Create a new string object from the given object. If encoding or errors is specified, then the object must expose
+a data buffer that will be decoded using the given encoding and error handler. Otherwise, returns the result of
+object.__str__() (if defined) or repr(object). encoding defaults to sys.getdefaultencoding(). errors defaults to
+‘strict’.
+Provide to pub.addTopicDefnProvider() as value for format parameter when the source is a module which has
+been imported. The module can contain any number of classes, the names of which correspond to root topics.
+pubsub.pub.TOPIC_TREE_FROM_CLASS = 'class'
+str(object=’‘) -> str str(bytes_or_buffer[, encoding[, errors]]) -> str
+Create a new string object from the given object. If encoding or errors is specified, then the object must expose
+a data buffer that will be decoded using the given encoding and error handler. Otherwise, returns the result of
+object.__str__() (if defined) or repr(object). encoding defaults to sys.getdefaultencoding(). errors defaults to
+‘strict’.
+Provide to pub.addTopicDefnProvider() as value for format parameter when the source is a class. The class
+contains, as nested classes, the root topics (and those contain nested classes for subtopics, etc).
+pubsub.pub.TOPIC_TREE_FROM_STRING = 'string'
+str(object=’‘) -> str str(bytes_or_buffer[, encoding[, errors]]) -> str
+Create a new string object from the given object. If encoding or errors is specified, then the object must expose
+a data buffer that will be decoded using the given encoding and error handler. Otherwise, returns the result of
+object.__str__() (if defined) or repr(object). encoding defaults to sys.getdefaultencoding(). errors defaults to
+‘strict’.
+Provide to pub.addTopicDefnProvider() as value for format parameter when the source is a string. The string
+contains Python code that defines one class for each root topic (and those contain nested classes for subtopics,
+etc).
+Developer:
+The following are useful to extend the capabilities of PyPubSub to support more topic definition providers or serialization formats for the builtin provider:
+class pubsub.core.ITopicDefnProvider
+All topic definition providers added via pub.addTopicDefnProvider() must have this interface. Derived classes
+must override the getDefn(), getTreeDoc() and topicNames() methods.
+class pubsub.core.ITopicDefnDeserializer
+Interface class for all topic definition de-serializers that can be accepted by TopicDefnProvider. A deserializer
+creates a topic tree from something such as file, module, or string.
+class pubsub.core.TopicDefnProvider(source: Any, format: str, **providerKwargs)
+Bases: pubsub.core.topicdefnprovider.ITopicDefnProvider
+Default implementation of the ITopicDefnProvider API. This implementation accepts several formats for the
+topic tree source data and delegates to a registered ITopicDefnDeserializer that converts source data into topic
+definitions.
+
+38
+
+Chapter 3. Use
+
+Pypubsub Documentation, Release 4.0.3
+
+This provider is instantiated automatically by pub.addTopicDefnProvider(source, format) when
+source is not an ITopicDefnProvider.
+Additional de-serializers can be registered via registerTypeForImport().
+
+3.4.2 Utils module
+Provides utility functions and classes that are not required for using pubsub but are likely to be very useful.
+copyright Copyright since 2006 by Oliver Schoenborn, all rights reserved.
+license BSD, see LICENSE_BSD_Simple.txt for details.
+pubsub.utils.printTreeDocs(rootTopic=None, topicMgr=None, **kwargs)
+Print out the topic tree to a file (or file-like object like a StringIO), starting at rootTopic. If root topic
+should be root of whole tree, get it from pub.getDefaultTopicTreeRoot(). The treeVisitor is an instance of
+pub.TopicTreeTraverser.
+Printing the tree docs would normally involve this:
+from pubsub import pub
+from pubsub.utils.topictreeprinter import TopicTreePrinter
+traverser = pub.TopicTreeTraverser( TopicTreePrinter(**kwargs) )
+traverser.traverse( pub.getDefaultTopicTreeRoot() )
+
+With printTreeDocs, it looks like this:
+from pubsub import pub
+from pubsub.utils import printTreeDocs
+printTreeDocs()
+
+The kwargs are the same as for TopicTreePrinter constructor: extra(None), width(70), indentStep(4), bulletTopic, bulletTopicItem, bulletTopicArg, fileObj(stdout). If fileObj not given, stdout is used.
+pubsub.utils.useNotifyByPubsubMessage(publisher: pubsub.core.publisher.Publisher = None,
+all: bool = True, **kwargs)
+Will cause all of pubsub’s notifications of pubsub “actions” (such as new topic created, message sent, listener
+subscribed, etc) to be sent out as messages. Topic will be ‘pubsub’ subtopics, such as ‘pubsub.newTopic’,
+‘pubsub.delTopic’, ‘pubsub.sendMessage’, etc.
+The ‘all’ and kwargs args are the same as pubsub’s setNotificationFlags(), except that ‘all’ defaults to True.
+The publisher is rarely needed:
+• The publisher must be specfied if pubsub is not installed on the system search path (ie from pubsub import
+. . . would fail or import wrong pubsub – such as if pubsub is within wxPython’s wx.lib package). Then
+pbuModule is the pub module to use:
+from wx.lib.pubsub import pub
+from wx.lib.pubsub.utils import notification
+notification.useNotifyByPubsubMessage()
+
+pubsub.utils.useNotifyByWriteFile(fileObj: TextIO = None, prefix: str = None, publisher:
+pubsub.core.publisher.Publisher = None, all: bool = True,
+**kwargs)
+Will cause all pubsub notifications of pubsub “actions” (such as new topic created, message sent, listener died
+etc) to be written to specified file (or stdout if none given). The fileObj need only provide a ‘write(string)’
+method.
+
+3.4. Reference
+
+39
+
+Pypubsub Documentation, Release 4.0.3
+
+The first two arguments are the same as those of NotifyByWriteFile constructor. The ‘all’ and kwargs arguments
+are those of pubsub’s setNotificationFlags(), except that ‘all’ defaults to True. See useNotifyByPubsubMessage() for an explanation of pubModule (typically only if pubsub inside wxPython’s wx.lib)
+class pubsub.utils.IgnoreNotificationsMixin
+Bases: pubsub.core.notificationmgr.INotificationHandler
+Derive your Notifications handler from this class if your handler just wants to be notified of one or two types
+of pubsub events. Then just override the desired methods. The rest of the notifications will automatically be
+ignored.
+notifyDeadListener(pubListener:
+pubsub.core.listener.Listener,
+topicObj:
+pubsub.core.topicobj.Topic)
+Called when a listener has been garbage collected. :param pubListener: the pubsub.core.Listener that
+wraps GC’d listener. :param topicObj: the pubsub.core.Topic object it was subscribed to.
+notifyDelTopic(topicName: str)
+Called whenever a topic is removed from topic tree. :param topicName: name of topic removed.
+notifyNewTopic(topicObj: pubsub.core.topicobj.Topic, description: str, required: List[str], argsDocs: Mapping[str, str])
+Called whenever a new topic is added to the topic tree.
+Parameters
+• topicObj – the Topic object for the message.
+• description – docstring for the topic.
+• required – list of message data names (keys in argsDocs) that are required.
+• argsDocs – dictionary of all message data names, with the corresponding docstring.
+notifySend(stage:
+str,
+topicObj:
+pubsub.core.topicobj.Topic,
+pubListener:
+pubsub.core.listener.Listener = None)
+Called multiple times during a sendMessage: once before message sending has started (pre), once for each
+listener about to be sent the message, and once after all listeners have received the message (post).
+Parameters
+• stage – ‘pre’, ‘post’, or ‘loop’.
+• topicObj – the Topic object for the message.
+• pubListener – None for pre and post stages; for loop, the listener that is about to be
+sent the message.
+notifySubscribe(pubListener: pubsub.core.listener.Listener, topicObj: pubsub.core.topicobj.Topic,
+newSub: bool)
+Called when a listener is subscribed to a topic. :param pubListener: the pubsub.core.Listener that wraps
+subscribed listener. :param topicObj: the pubsub.core.Topic object subscribed to. :param newSub: false if
+pubListener was already subscribed.
+notifyUnsubscribe(pubListener:
+pubsub.core.listener.Listener,
+topicObj:
+pubsub.core.topicobj.Topic)
+Called when a listener is unsubscribed from given topic. :param pubListener: the pubsub.core.Listener
+that wraps unsubscribed listener. :param topicObj: the pubsub.core.Topic object unsubscribed from.
+class pubsub.utils.ExcPublisher(topicMgr: pubsub.core.topicmgr.TopicManager = None)
+Bases: pubsub.core.listener.IListenerExcHandler
+Example exception handler that simply publishes the exception traceback. The messages will have topic name
+given by topicUncaughtExc.
+
+40
+
+Chapter 3. Use
+
+Pypubsub Documentation, Release 4.0.3
+
+init(topicMgr: pubsub.core.topicmgr.TopicManager)
+Must be called only after pubsub has been imported since this handler creates a pubsub topic.
+
+3.4.3 Core Classes
+The following classes are useful for advanced use of PyPubSub:
+• pubsub.core.Listener
+• pubsub.core.TopicObj
+• pubsub.core.TopicManager
+• pubsub.core.Publisher
+It is not typically necessary to know about or use these: the pub module instantiates a default Publisher, which contains
+a TopicManager, which generates a Topic object for every topic used. The Publisher instance returns a Listener
+instance from subscribe, wrapping the given callable with PyPubSub-relevant meta-data about the callable.
+Publisher
+class pubsub.core.Publisher(treeConfig: pubsub.core.topicmgr.TreeConfig = None)
+Represent the class that send messages to listeners of given topics and that knows how to subscribe/unsubscribe
+listeners from topics.
+addNotificationHandler(handler: pubsub.core.notificationmgr.INotificationHandler)
+Add a handler for tracing pubsub activity.
+clearNotificationHandlers()
+Remove all notification handlers that were added via self.addNotificationHandler().
+getListenerExcHandler() → pubsub.core.listener.IListenerExcHandler
+Get the listener exception handler that was registered via setListenerExcHandler(), or None of none registered.
+getNotificationFlags() → Mapping[str, bool]
+Return a dictionary with the notification flag states.
+getTopicMgr() → pubsub.core.topicmgr.TopicManager
+Get the topic manager created for this publisher.
+sendMessage(topicName: str, **msgData)
+Send a message. :param topicName: name of message topic (dotted or tuple format) :param msgData:
+message data (must satisfy the topic’s MDS)
+setListenerExcHandler(handler: pubsub.core.listener.IListenerExcHandler)
+Set the function to call when a listener raises an exception during a sendMessage().
+setNotificationFlags(**kwargs)
+Set the notification flags on or off for each type of pubsub activity. The kwargs keys can be any of the
+following:
+• subscribe: if True, get notified whenever a listener subscribes to a topic;
+• unsubscribe: if True, get notified whenever a listener unsubscribes from a topic;
+• deadListener: if True, get notified whenever a subscribed listener has been garbage-collected;
+• sendMessage: if True, get notified whenever sendMessage() is called;
+• newTopic: if True, get notified whenever a new topic is created;
+
+3.4. Reference
+
+41
+
+Pypubsub Documentation, Release 4.0.3
+
+• delTopic: if True, get notified whenever a topic is “deleted” from topic tree;
+• all: set all of the above to the given value (True or False).
+The kwargs that are not given or None are left at their current value. Those that are False will cause
+corresponding notification to be silenced. The ‘all’ is set first, then the others. E.g.
+mgr.setFlagStates(all=True, delTopic=False)
+will toggle all notifications on, but will turn off the ‘delTopic’ notification.
+setTopicUnspecifiedFatal(newVal: bool = True, checkExisting: bool = True) → bool
+Changes the creation policy for topics.
+By default, pubsub will accept topic names for topics that don’t have a message data specification (MDS).
+This default behavior makes pubsub easier to use initially, but allows topic names with typos to go uncaught
+in common operations such as sendMessage() and subscribe(). In a large application, this can lead to nasty
+bugs. Pubsub’s default behavior is equivalent to setTopicUnspecifiedFatal(false).
+When called with newVal=True, any future pubsub operation that requires a topic (such as subscribe and
+sendMessage) will require an MDS; if none is available, pubsub will raise a TopicDefnError exception.
+If checkExisting is not given or True, all existing topics are validated. A TopicDefnError exception is
+raised if one is found to be incomplete (has hasMDS() false).
+Returns previous value of newVal.
+Note that this method can be used in several ways:
+1. Only use it in your application when something is not working as expected: just add a call at the
+beginning of your app when you have a problem with topic messages not being received (for instance),
+and remove it when you have fixed the problem.
+2. Use it from the beginning of your app and never use newVal=False: add a call at the beginning of
+your app and you leave it in (forever), and use Topic Definition Providers to provide the listener
+specifications. These are easy to use via the pub.addTopicDefnProvider().
+3. Use it as in #1 during app development, and once stable, use #2. This is easiest to do in combination
+with pub.exportTopicTreeSpec().
+subscribe(listener:
+Callable[..., Any], topicName:
+str, **curriedArgs) → pubsub.core.listener.Listener
+Subscribe listener to named topic. Raises ListenerMismatchError if listener isn’t compatible with the
+topic’s MDS. Returns (pubsub.core.Listener, success), where success is False if listener was already subscribed. The pub.core.Listener wraps the callable subscribed and provides introspection-based info about
+the callable. Extra keyword arguments are treated as currying of listener arguments.
+Example: pub.subscribe(listener1, ‘some_topic’) pub.subscribe(listener2, ‘some_other_topic’, a=2, b=3)
+In the second example, the listener2 will always receive a=2 and b=3 and pubsub treats it as though a and
+b were curried, i.e. as if the actual listener subscribed were a callable that did not have a or b parameters.
+Hence if some_other_topic has a or b as message data, subscription will raise a ListenerInadequate error.
+Note that if ‘subscribe’ notification is on, the handler’s ‘notifySubscribe’ method is called after subscription.
+unsubAll(topicName:
+str = None, listenerFilter:
+bool] = None, topicFilter:
+Union[str,
+List[pubsub.core.listener.Listener]
+Unsubscribe all listeners of a topic.
+
+Callable[[pubsub.core.listener.Listener],
+Callable[[str], bool]] = None) →
+
+Parameters
+• topicName – if none given, unsub from all topics.
+
+42
+
+Chapter 3. Use
+
+Pypubsub Documentation, Release 4.0.3
+
+• listenerFilter – filter function to apply to listeners, unsubscribe only the listeners
+that satisfy listenerFilter(listener: Listener) == True
+• topicFilter – topic name, or a filter function to apply to topics; in latter case, only
+topics that satisfy topicFilter(topic name) == True will be affected
+Returns list of all listeners (instances of pub.Listener) that were unsubscribed from the topic
+tree
+Note: this method will generate one ‘unsubcribe’ notification message (see pub.setNotificationFlags()) for
+each listener unsubscribed.
+unsubscribe(listener: Callable[..., Any], topicName: str)
+Unsubscribe from given topic. Returns the pubsub.core.Listener instance that was used to wrap listener at
+subscription time. Raises an TopicNameError if topicName doesn’t exist.
+Note that if ‘unsubscribe’ notification is on, the handler’s notifyUnsubscribe() method will be called after
+unsubscribing.
+TopicManager
+class pubsub.core.TopicManager(treeConfig: pubsub.core.topicmgr.TreeConfig = None)
+Manages the registry of all topics and creation/deletion of topics.
+Note that any method that accepts a topic name can accept it in the ‘dotted’ format such as 'a.b.c.' or in
+tuple format such as ('a', 'b', 'c'). Any such method will raise a ValueError if name not valid (empty,
+invalid characters, etc).
+addDefnProvider(providerOrSource:
+Any,
+format=None)
+→
+pubsub.core.topicdefnprovider.ITopicDefnProvider
+Register a topic definition provider. After this method is called, whenever a topic must be created, the first
+definition provider that has a definition for the required topic is used to instantiate the topic.
+If providerOrSource is an instance of ITopicDefnProvider, register it as a provider of topic definitions. Otherwise, register a new instance of TopicDefnProvider(providerOrSource, format). In that case, if format is
+not given, it defaults to TOPIC_TREE_FROM_MODULE. Either way, returns the instance of ITopicDefnProvider registered.
+checkAllTopicsHaveMDS()
+Check that all topics that have been created for their MDS. Raise a TopicDefnError if one is found that
+does not have one.
+clearDefnProviders()
+Remove all registered topic definition providers
+clearTree()
+Remove every topic from the topic tree
+delTopic(name: str) → bool
+Delete the named topic, including all sub-topics. Returns False if topic does not exist; True otherwise.
+Also unsubscribe any listeners of topic and all subtopics.
+getNumDefnProviders() → int
+Get how many topic definitions providers are registered.
+getOrCreateTopic(name:
+str, protoListener:
+Callable[..., Any] = None) → pubsub.core.topicobj.Topic
+Get the Topic instance for topic of given name, creating it (and any of its missing parent topics) as necessary. Pubsub functions such as subscribe() use this to obtain the Topic object corresponding to a topic
+name.
+
+3.4. Reference
+
+43
+
+Pypubsub Documentation, Release 4.0.3
+
+The name can be in dotted or string format ('a.b.' or ('a','b')).
+This method always attempts to return a “complete” topic, i.e. one with a Message Data Specification
+(MDS). So if the topic does not have an MDS, it attempts to add it. It first tries to find an MDS from a
+TopicDefnProvider (see addDefnProvider()). If none is available, it attempts to set it from protoListener,
+if it has been given. If not, the topic has no MDS.
+Once a topic’s MDS has been set, it is never again changed or accessed by this method.
+Examples:
+# assume no topics exist
+# but a topic definition provider has been added via
+# pub.addTopicDefnProvider() and has definition for topics 'a' and 'a.b'
+# creates topic a and a.b; both will have MDS from the defn provider:
+t1 = topicMgr.getOrCreateTopic('a.b')
+t2 = topicMgr.getOrCreateTopic('a.b')
+assert(t1 is t2)
+assert(t1.getParent().getName() == 'a')
+def proto(req1, optarg1=None): pass
+# creates topic c.d with MDS based on proto; creates c without an MDS
+# since no proto for it, nor defn provider:
+t1 = topicMgr.getOrCreateTopic('c.d', proto)
+
+The MDS can also be defined via a call to subscribe(listener, topicName), which indirectly calls getOrCreateTopic(topicName, listener).
+getRootAllTopics() → pubsub.core.topicobj.Topic
+Get the topic that is parent of all root (ie top-level) topics, for default TopicManager instance created when
+this module is imported. Some notes:
+• “root of all topics” topic satisfies isAll()==True, isRoot()==False, getParent() is None;
+• all root-level topics satisfy isAll()==False, isRoot()==True, and getParent() is getDefaultTopicTreeRoot();
+• all other topics satisfy neither.
+getTopic(name: str, okIfNone: bool = False) → pubsub.core.topicobj.Topic
+Get the Topic instance for the given topic name. By default, raises an TopicNameError exception if a topic
+with given name doesn’t exist. If okIfNone=True, returns None instead of raising an exception.
+getTopicsSubscribed(listener: Callable[..., Any]) → List[pubsub.core.topicobj.Topic]
+Get the list of Topic objects that have given listener subscribed. Note: the listener can also get messages
+from any sub-topic of returned list.
+hasTopicDefinition(name: str) → bool
+Determine if there is a definition avaiable for topic ‘name’. Return true if there is, false otherwise. Note: a
+topic may have a definition without being in use, and vice versa.
+isTopicInUse(name: str) → bool
+Determine if topic ‘name’ is in use. True if a Topic object exists for topic name (i.e. message has already
+been sent for that topic, or a least one listener subscribed), false otherwise. Note: a topic may be in use but
+not have a definition (MDS and docstring); or a topic may have a definition, but not be in use.
+
+44
+
+Chapter 3. Use
+
+Pypubsub Documentation, Release 4.0.3
+
+Topic
+class pubsub.core.Topic(treeConfig: pubsub.core.topicobj.TreeConfig, nameTuple: Tuple[str, ...],
+description: str, msgArgsInfo: pubsub.core.topicargspec.ArgsInfo, parent:
+pubsub.core.topicobj.Topic = None)
+Represent topics in pubsub. Contains information about a topic, including topic’s message data specification
+(MDS), the list of subscribed listeners, docstring for the topic. It allows Python-like access to subtopics (e.g.
+A.B is subtopic B of topic A).
+argDescriptions
+Get a map of keyword names to docstrings: documents each MDS element.
+args
+Returns a pair (reqdArgs, optArgs) where reqdArgs is tuple of names of required message arguments,
+optArgs is tuple of names for optional arguments. If topic args not specified yet, returns (None, None).
+description
+Return the ‘docstring’ of topic
+filterMsgArgs(msgData: Mapping[str, Any], check: bool = False) → Mapping[str, Any]
+Get the MDS docstrings for each of the spedified kwargs.
+getArgDescriptions() → Dict[str, str]
+Get a map of keyword names to docstrings: documents each MDS element.
+getArgs() → Tuple[Sequence[str], Sequence[str]]
+Returns a pair (reqdArgs, optArgs) where reqdArgs is tuple of names of required message arguments,
+optArgs is tuple of names for optional arguments. If topic args not specified yet, returns (None, None).
+getDescription() → str
+Return the ‘docstring’ of topic
+getListeners() → List[pubsub.core.listener.Listener]
+Get a copy of list of listeners subscribed to this topic. Safe to iterate over while listeners get un/subscribed
+from this topics (such as while sending a message).
+getListenersIter() → Iterator[pubsub.core.listener.Listener]
+Get an iterator over listeners subscribed to this topic. Do not use if listeners can be un/subscribed while
+iterating.
+getName() → str
+Return dotted form of full topic name
+getNameTuple() → Tuple[str, ...]
+Return tuple form of full topic name
+getNodeName() → str
+Return the last part of the topic name (has no dots)
+getNumListeners() → int
+Return number of listeners currently subscribed to topic. This is different from number of listeners that
+will get notified since more general topics up the topic tree may have listeners.
+getParent() → pubsub.core.topicobj.Topic
+Get Topic object that is parent of self (i.e. self is a subtopic of parent). Return none if self is the “all topics”
+topic.
+getSubtopic(relName: Union[str, Tuple[str, ...]]) → pubsub.core.topicobj.Topic
+Get the specified subtopic object. The relName can be a valid subtopic name, a dotted-name string, or a
+tuple.
+
+3.4. Reference
+
+45
+
+Pypubsub Documentation, Release 4.0.3
+
+getSubtopics() → ValuesView[pubsub.core.topicobj.Topic]
+Get a list of Topic instances that are subtopics of self.
+hasListener(listener: Callable[..., Any]) → bool
+Return true if listener is subscribed to this topic.
+hasListeners() → bool
+Return true if there are any listeners subscribed to this topic, false otherwise.
+hasMDS() → bool
+Return true if this topic has a message data specification (MDS).
+hasSubtopic(name: str = None) → bool
+Return true only if name is a subtopic of self. If name not specified, return true only if self has at least one
+subtopic.
+isAll() → bool
+Returns true if this topic is the ‘all topics’ topic. All root topics behave as though they are child of that
+topic.
+isRoot() → bool
+Returns true if this is a “root” topic, false otherwise. A root topic is a topic whose name contains no dots
+and which has pub.ALL_TOPICS as parent.
+isValid(listener: Callable[..., Any], curriedArgNames: Sequence[str] = None) → bool
+Return True only if listener could be subscribed to this topic, otherwise returns False. Note that method
+raises TopicDefnError if self not hasMDS().
+listeners
+Get a copy of list of listeners subscribed to this topic. Safe to iterate over while listeners get un/subscribed
+from this topics (such as while sending a message).
+name
+Return dotted form of full topic name
+numListeners
+Return number of listeners currently subscribed to topic. This is different from number of listeners that
+will get notified since more general topics up the topic tree may have listeners.
+parent
+Get Topic object that is parent of self (i.e. self is a subtopic of parent). Return none if self is the “all topics”
+topic.
+publish(**msgData)
+This sends message to listeners of parent topics as well. If an exception is raised in a listener, the publish
+is aborted, except if there is a handler (see pub.setListenerExcHandler).
+Note that it is important that the PublisherMixin NOT modify any state data during message sending,
+because in principle it could happen that a listener causes another message of same topic to be sent (presumably, the listener has a way of preventing infinite loop).
+setArgDescriptions(**docs)
+Set the docstring for each MDS datum.
+setDescription(desc: str)
+Set the ‘docstring’ of topic
+setMsgArgSpec(argsDocs: Dict[str, str], required: Sequence[str] = ())
+Specify the message data for topic messages. :param argsDocs: a dictionary of keyword names (message
+data name) and data ‘docstring’; cannot be None :param required: a list of those keyword names, appearing
+in argsDocs, which are required (all others are assumed optional)
+
+46
+
+Chapter 3. Use
+
+Pypubsub Documentation, Release 4.0.3
+
+Can only be called if this info has not been already set at construction or in a previous call. :raise RuntimeError: if MDS already set at construction or previous call.
+subscribe(listener: Callable[..., Any], **curriedArgs) → Tuple[pubsub.core.listener.Listener, bool]
+Subscribe listener to this topic. Returns a pair (pub.Listener, success).
+Parameters curriedArgs – keyword argument to curry the listener arguments at
+message time; the listener(args) is treated essentially as listener(**(args curriedArgs)). If the listener was already subscribed, the pure curried args names (curriendArgs.keys() - _overrides_) must be unchanged.
+Returns True only if listener was not already subscribed; False if it was already subscribed.
+subtopics
+Get a list of Topic instances that are subtopics of self.
+unsubscribe(listener: Callable[..., Any]) → pubsub.core.listener.Listener
+Unsubscribe the specified listener from this topic. Returns the pub.Listener object associated with the
+listener that was unsubscribed, or None if the specified listener was not subscribed to this topic. Note that
+this method calls notifyUnsubscribe(listener, self) on all registered notification handlers
+(see pub.addNotificationHandler).
+unsubscribeAllListeners(filter: Callable[[pubsub.core.listener.Listener], bool] = None) →
+List[pubsub.core.listener.Listener]
+Clears list of subscribed listeners. If filter is given, it must be a function that takes a listener and returns
+true if the listener should be unsubscribed. Returns the list of Listener for listeners that were unsubscribed.
+validate(listener: Callable[..., Any], curriedArgNames: Sequence[str] = None) → pubsub.core.callables.CallArgsInfo
+Checks whether listener could be subscribed to this topic: if yes, just returns; if not, raises ListenerMismatchError. Note that method raises TopicDefnError if self not hasMDS().
+Listener
+class pubsub.core.Listener(callable_obj:
+Callable[...,
+Any],
+argsInfo:
+pubsub.core.callables.CallArgsInfo, curriedArgs: Mapping[str, Any]
+= None, onDead: Callable[[pubsub.core.listener.Listener], None] =
+None)
+Wraps a callable (UserListener) so it can be stored by weak reference and introspected to verify that it adheres
+to a topic’s MDS.
+A Listener instance has the same hash value as the callable that it wraps.
+Callables that have ‘argName=pub.AUTO_TOPIC’ as a kwarg will be given the Topic object for the message
+sent by sendMessage(). Such a Listener will have wantsTopicObjOnCall() True.
+Callables that have a ‘** kargs’ argument will receive all message data, not just that for the topic they are
+subscribed to. Such a listener will have wantsAllMessageData() True.
+getCallable() → Callable[..., Any]
+Get the listener that was given at initialization. Note that this could be None if it has been garbage collected
+(e.g. if it was created as a wrapper of some other callable, and not stored locally).
+isDead() → bool
+Return True if this listener died (has been garbage collected)
+module() → module
+Get the module in which the callable was defined.
+name() → str
+Return a human readable name for listener, based on the listener’s type name and its id (as obtained from
+3.4. Reference
+
+47
+
+Pypubsub Documentation, Release 4.0.3
+
+id(listener)). If caller just needs name based on type info, specify instance=False. Note that the listener’s
+id() was saved at construction time (since it may get garbage collected at any time) so the return value
+of name() is not necessarily unique if the callable has died (because id’s can be re-used after garbage
+collection).
+setCurriedArgs(**curriedArgs)
+Curry the wrapped listener so it appears to not have list(curriedArgs) among its parameters. The curriedArgs key-value pairs will be given to wrapped listener at call time.
+typeName() → str
+Get a type name for the listener. This is a class name or function name, as appropriate.
+wantsAllMessageData() → bool
+True if this listener wants all message data: it has a ** kwargs argument
+wantsTopicObjOnCall() → bool
+True if this listener wants topic object: it has a arg=pub.AUTO_TOPIC
+
+48
+
+Chapter 3. Use
+
+CHAPTER
+
+4
+
+Contribute
+
+This page is intended for developers of (or contributing to) PyPubSub.
+In this section:
+• Contributing
+• System Requirements
+• Scripts Available
+• Releases
+• Py2Exe and cx_Freeze
+
+4.1 Contributing
+Contributions are welcome! There are many ways you could contribute:
+• bug fixes
+• new features
+• test results on different platforms
+• documentation
+• screencasts! (of applications using PyPubSub with output when user clicks)
+• example topic trees (using pubsub.utils.printTopicTree() in latest version, or print
+Publisher in versions 1)
+• other improvements
+• money!
+
+49
+
+Pypubsub Documentation, Release 4.0.3
+
+Please contact by posting on the forum pypubsub-dev forum (link in the Support section) or via http://github/schollii/
+pypubsub.
+
+4.2 System Requirements
+In addition to the System Requirements, the following are required:
+• To run unit tests:
+– pytest
+• To generate the docs:
+– sphinx >= 1.4.8
+– In PyPubSub 3.3, which used an older version of sphinx, sphinx had to be patched as per post on sphinxdev, but this no longer seems to be the required:
+--- C:/Python24/Lib/site-packages/Sphinx-0.6.5-py2.4.egg_orig/sphinx/
+˓→environment.py
+Thu Mar 18 09:59:23 2010
++++ C:/Python24/Lib/site-packages/Sphinx-0.6.5-py2.4.egg/sphinx/environment.
+˓→py
+Thu Mar 18 09:57:40 2010
+@@ -933,12 +933,12 @@
+node['refuri'] = node['anchorname'] or '#'
+return toc
++
+
++
+
+def get_toctree_for(self, docname, builder, collapse):
+def get_toctree_for(self, docname, builder, **tmplKw):
+"""Return the global TOC nodetree."""
+doctree = self.get_doctree(self.config.master_doc)
+for toctreenode in doctree.traverse(addnodes.toctree):
+result = self.resolve_toctree(docname, builder, toctreenode,
+prune=True, collapse=collapse)
+prune=True, **tmplKw)
+if result is not None:
+return result
+
+--- C:/Python24/Lib/site-packages/Sphinx-0.6.5-py2.4.egg_orig/sphinx/builders/
+˓→html.py
+Thu Mar 18 09:59:25 2010
++++ C:/Python24/Lib/site-packages/Sphinx-0.6.5-py2.4.egg/sphinx/builders/html.
+˓→py
+Thu Mar 18 09:55:40 2010
+@@ -623,9 +623,9 @@
+if self.indexer is not None and title:
+self.indexer.feed(pagename, title, doctree)
++
++
+
+def _get_local_toctree(self, docname, collapse=True):
+def _get_local_toctree(self, docname, **tmplKw):
+return self.render_partial(self.env.get_toctree_for(
+docname, self, collapse))['fragment']
+docname, self, **tmplKw))['fragment']
+def get_outfilename(self, pagename):
+return path.join(self.outdir, os_path(pagename) + self.out_suffix)
+
+• To change code: PyCharm is recommended (Community Edition is sufficient). Various build configurations are
+available via the PyPubSub project when loaded into PyCharm.
+
+50
+
+Chapter 4. Contribute
+
+Pypubsub Documentation, Release 4.0.3
+
+4.3 Scripts Available
+Unit Testing: The test suite is most conveniently run from PyCharm via the “py.test in suite” build configuration. The
+tests can also be run automatically via pytest suite from the tests folder.
+Once this passes using the project’s default interpreter, a Terminal can be opened in PyCharm (or alternately a
+command shell from Windows), and from the PyPubSub root folder, run tox. This will attempt to run the test
+suite in every 3.x version of Python, x>=3 (ie 3.3, 3.4, etc).
+After changes are committed to github, the Travis CI will automatically run the tests on a Linux platform, for all
+versions of Python supported by PyPubSub. The results will be at https://travis-ci.org/schollii/pypubsub/builds.
+There is also a buildbot maintained by Jerome Laheurte to test on additional *nix flavors, including OSX. Test
+results can be viewed at https://jeromelaheurte.net/buildbot/pubsub/console.
+Performance Test: A small performance test is available in the tests folder. It can be run from PyCharm via the
+perf build configuration. This will generate a new .pstats file which can be analysed. The test can also be
+run directly from command shell via python perf.py 1000. The test is meant to compare the impact of
+changes before/after and is designed to compare on results on the same system (hardwards, OS).
+Documentation: The documentation can be generated locally on Windows via the Gen Docs build configuration in
+PyCharm. Alternatively, it can be generated by running make html from the docs folder of source distribution.
+The documentation is automatically built and available online at http://pypubsub.readthedocs.io. The latest
+from master branch is at http://pypubsub.readthedocs.io/en/master/. The stable (released) documentation is at
+http://pypubsub.readthedocs.io/en/stable/.
+
+4.4 Releases
+PyPubSub uses the latest stable Python packaging and distribution tools: wheel, twine, and pypi.
+Generating a new release involves the following sequence of steps:
+• Verify that tox, sphinx, wheel, twine, and setuptools are installed.
+• Ensure that pytest suite runs 100%, and that the examples run without error in examples/ folder (one of the
+examples requires wxPython – install latest stable)
+• Ensure that tox (run from pypubsub root folder) runs to completion without errors or warnings on all versions
+of Python (3.x)
+• Update version number via a search-replace in the Version Change scope of PyCharm:
+– src/pubsub/__init__.py: version
+– docs/changelog.rst
+– src/pubsub/RELEASE_NOTES.txt
+– README.rst
+• Add section at top of docs/changelog.rst with details of what changed (audience: pypubsub developers)
+• Update src/pubsub/RELEASE_NOTES.txt (audience: pypubsub end-users) to have high-level summary of
+changes for this release, handling incompatibilities, etc
+• Update the setup.py classifiers (such as adding a new version of Python supported)
+• In docs folder:
+– Update index.rst and docs/installation.rst
+4.3. Scripts Available
+
+51
+
+Pypubsub Documentation, Release 4.0.3
+
+– Regenerate HTML docs via make, confirm ok (no warnings etc)
+Persist to server:
+• Commit and push to remote master repository
+• Confirm that travis CI all pass
+Distribute:
+• Clean out the dist/ folder
+• Generate the source and wheel distributions: python setup.py bdist_wheel sdist
+• Upload to PyPI: twine upload dist/*:
+• Verify new release info and links on pypi.python.org
+• Create new branch (tag) in remote master repository
+• Confirm installation will work: attempt to install locally via PyPI, then import from Python shell
+
+4.5 Py2Exe and cx_Freeze
+For packaging py2exe or cx_Freeze, see (possibly out of date):
+
+4.5.1 Packaging with py2exe and cxFreeze
+In this section we will see how to package applications that use PyPubSub, with py2exe and cx_Freeze packaging
+tools.
+Introduction
+Packaging tools such as py2exe and cx_Freeze determine the dependencies that have to be included in a package
+by recursively finding the modules from the import statements used. Recursive finding of modules from the import
+statements uses straight forward approach i.e., if the python code dynamically imports certain modules by modifying
+the sys.path at runtime or if the code uses __import__ statements, those modules are likely to be left out by the
+packaging tool. This can be a problem for some packaged applications.
+Packaging modules that use PyPubSub
+PyPubSub supports two different messaging protocols namely args1 and kwargs; choosing and switching between
+these protocols is done by modifying the module path dynamically. This can result in import error like this at runtime:
+from listenerimpl import Listener, ListenerValidator
+ImportError: No module named listenerimpl
+
+In the following sections we show an example script that uses PyPubSub and discuss the setup script to package it
+using py2exe or cx_Freeze packaging tools.
+
+52
+
+Chapter 4. Contribute
+
+Pypubsub Documentation, Release 4.0.3
+
+Example
+Consider a sample application which has a single file named say testpubsub.py
+from pubsub import pub
+def listener1(msg):
+print "The listener received the message : %s" % (msg, )
+pub.subscribe(listener1, 'test.pubsub')
+def sender():
+pub.sendMessage('test.pubsub', msg="Hola! this is a test message")
+if __name__ == "__main__":
+sender()
+
+To package this with py2exe and cx_Freeze you write a conventional setup.py module, but with extra options that
+the packaging tool uses to create the final distribution.
+Setup file using py2exe
+The setup.py for this would look something like this
+"""
+File based on a contribution from Josh Immanuel. Use via
+python setup-py2exe.py py2exe
+which will create a dist folder containing the .exe, the python DLL, and a
+few other DLL deemed by py2exe to be critical to the application execution.
+The contents of the dist folder should then be packaged using a tool such
+as NSIS or Inno Setup. The py2exe page has an example for NSIS.
+"""
+from distutils.core import setup
+import py2exe
+setup (
+name='TestPubSub',
+description="Script to test pubsub for packaging",
+version="0.1",
+console=[{'script': 'testpubsub.py'}],
+options={ 'py2exe': {
+'packages': 'encodings, pubsub',
+'includes': None}
+},
+)
+
+The line 'packages': 'encodings, pubsub' explicitly tells py2exe to include pubsub as a package so
+that the entire pubsub folder (from the installation location) including its sub packages are included for packaging.
+As the package has the entire list of python modules under pubsub, runtime protocol selection is now possible in the
+generated exe file.
+4.5. Py2Exe and cx_Freeze
+
+53
+
+Pypubsub Documentation, Release 4.0.3
+
+To build, run:
+python setup.py py2exe
+
+which will produce a dist folder containing testpubsub.exe and other DLLs and files required to run the application. Interestingly, py2exe command complains about modules that appear to be missing:
+The following modules appear to be missing [‘callables’, ‘core’, ‘core.notificationmgr’, . . . , ‘topicu’,
+‘validatedefnargs’]
+however, the application runs fine.
+Setup file using cx_Freeze
+The setup.py for this would look something like this
+from cx_Freeze import setup, Executable as cxExecutable
+import platform
+if platform.system() == 'Windows':
+# base must be set on Windows to either console or gui app
+# testpubsub is currently a console application
+# base = 'Win32GUI'
+base = 'Console'
+else:
+base = None
+opts = { 'compressed' : True,
+'create_shared_zip' : False,
+}
+WIN_Target = cxExecutable(
+script='testpubsub.py',
+base=base,
+targetName='testpubsub.exe',
+compress=True,
+appendScriptToLibrary=False,
+appendScriptToExe=True
+)
+setup(
+name='TestPubSub',
+description="Script to test pubsub for packaging with cxfreeze",
+version='0.1',
+options={'build_exe' : opts},
+executables=[WIN_Target]
+)
+
+To build, run:
+python setup.py build
+
+We can safely ignore the missing modules warning in the build log:
+
+54
+
+Chapter 4. Contribute
+
+Pypubsub Documentation, Release 4.0.3
+
+Missing modules:
+? core.publisher imported from pubsub.pub
+? listenerimpl imported from pubsub.core.listener
+? publishermixin imported from pubsub.core.topicobj
+? topicargspecimpl imported from pubsub.core.topicargspec
+? topicmgrimpl imported from pubsub.core.topicmgr
+
+4.5. Py2Exe and cx_Freeze
+
+55
+
+Pypubsub Documentation, Release 4.0.3
+
+56
+
+Chapter 4. Contribute
+
+CHAPTER
+
+5
+
+Indices and tables
+
+• genindex
+• modindex
+• search
+
+57
+
+Pypubsub Documentation, Release 4.0.3
+
+58
+
+Chapter 5. Indices and tables
+
+Python Module Index
+
+p
+pubsub.pub, 31
+pubsub.utils, 39
+
+59
+
+Pypubsub Documentation, Release 4.0.3
+
+60
+
+Python Module Index
+
+Index
+
+A
+
+getDefaultPublisher() (in module pubsub.pub), 32
+getDefaultTopicMgr() (in module pubsub.pub), 35
+getDescription() (pubsub.core.Topic method), 45
+getListenerExcHandler() (in module pubsub.pub), 35
+getListenerExcHandler()
+(pubsub.core.Publisher
+method), 41
+getListenerID() (in module pubsub.core), 34
+getListeners() (pubsub.core.Topic method), 45
+getListenersIter() (pubsub.core.Topic method), 45
+getName() (pubsub.core.Topic method), 45
+getNameTuple() (pubsub.core.Topic method), 45
+getNodeName() (pubsub.core.Topic method), 45
+getNotificationFlags() (in module pubsub.pub), 36
+C
+getNotificationFlags() (pubsub.core.Publisher method),
+checkAllTopicsHaveMDS() (pubsub.core.TopicManager
+41
+method), 43
+getNumDefnProviders()
+(pubsub.core.TopicManager
+clearDefnProviders()
+(pubsub.core.TopicManager
+method), 43
+method), 43
+getNumListeners() (pubsub.core.Topic method), 45
+clearNotificationHandlers() (in module pubsub.pub), 36
+getNumTopicDefnProviders() (in module pubsub.pub),
+clearNotificationHandlers()
+(pubsub.core.Publisher
+37
+method), 41
+getOrCreateTopic() (pubsub.core.TopicManager method),
+clearTopicDefnProviders() (in module pubsub.pub), 37
+43
+clearTree() (pubsub.core.TopicManager method), 43
+getParent() (pubsub.core.Topic method), 45
+getRootAllTopics() (pubsub.core.TopicManager method),
+D
+44
+delTopic() (pubsub.core.TopicManager method), 43
+getSubtopic() (pubsub.core.Topic method), 45
+description (pubsub.core.Topic attribute), 45
+getSubtopics() (pubsub.core.Topic method), 45
+getTopic() (pubsub.core.TopicManager method), 44
+E
+getTopicMgr() (pubsub.core.Publisher method), 41
+ExcHandlerError, 36
+getTopicsSubscribed()
+(pubsub.core.TopicManager
+ExcPublisher (class in pubsub.utils), 40
+method), 44
+exportTopicTreeSpec() (in module pubsub.pub), 36
+addDefnProvider() (pubsub.core.TopicManager method),
+43
+addNotificationHandler() (in module pubsub.pub), 36
+addNotificationHandler()
+(pubsub.core.Publisher
+method), 41
+addTopicDefnProvider() (in module pubsub.pub), 37
+ALL_TOPICS (in module pubsub.pub), 34
+argDescriptions (pubsub.core.Topic attribute), 45
+args (pubsub.core.Topic attribute), 45
+AUTO_TOPIC (in module pubsub.pub), 33
+
+F
+filterMsgArgs() (pubsub.core.Topic method), 45
+
+G
+getArgDescriptions() (pubsub.core.Topic method), 45
+getArgs() (pubsub.core.Topic method), 45
+getCallable() (pubsub.core.Listener method), 47
+
+H
+hasListener() (pubsub.core.Topic method), 46
+hasListeners() (pubsub.core.Topic method), 46
+hasMDS() (pubsub.core.Topic method), 46
+hasSubtopic() (pubsub.core.Topic method), 46
+hasTopicDefinition()
+(pubsub.core.TopicManager
+method), 44
+
+61
+
+Pypubsub Documentation, Release 4.0.3
+
+I
+
+S
+
+IgnoreNotificationsMixin (class in pubsub.utils), 40
+IListenerExcHandler (class in pubsub.pub), 35
+init() (pubsub.utils.ExcPublisher method), 40
+INotificationHandler (class in pubsub.pub), 36
+instantiateAllDefinedTopics() (in module pubsub.pub), 37
+isAll() (pubsub.core.Topic method), 46
+isDead() (pubsub.core.Listener method), 47
+isRoot() (pubsub.core.Topic method), 46
+isSubscribed() (in module pubsub.pub), 33
+isTopicInUse() (pubsub.core.TopicManager method), 44
+isValid() (in module pubsub.pub), 33
+isValid() (pubsub.core.Topic method), 46
+ITopicDefnDeserializer (class in pubsub.core), 38
+ITopicDefnProvider (class in pubsub.core), 38
+
+M
+
+SenderMissingReqdMsgDataError, 32
+SenderUnknownMsgDataError, 32
+sendMessage() (in module pubsub.pub), 32
+sendMessage() (pubsub.core.Publisher method), 41
+setArgDescriptions() (pubsub.core.Topic method), 46
+setCurriedArgs() (pubsub.core.Listener method), 48
+setDescription() (pubsub.core.Topic method), 46
+setListenerExcHandler() (in module pubsub.pub), 35
+setListenerExcHandler() (pubsub.core.Publisher method),
+41
+setMsgArgSpec() (pubsub.core.Topic method), 46
+setNotificationFlags() (in module pubsub.pub), 36
+setNotificationFlags() (pubsub.core.Publisher method),
+41
+setTopicUnspecifiedFatal() (in module pubsub.pub), 37
+setTopicUnspecifiedFatal()
+(pubsub.core.Publisher
+method), 42
+subscribe() (in module pubsub.pub), 32
+subscribe() (pubsub.core.Publisher method), 42
+subscribe() (pubsub.core.Topic method), 47
+subtopics (pubsub.core.Topic attribute), 47
+
+MessageDataSpecError, 33
+module() (pubsub.core.Listener method), 47
+
+T
+
+L
+Listener (class in pubsub.core), 47
+ListenerMismatchError, 33
+listeners (pubsub.core.Topic attribute), 46
+
+N
+
+Topic (class in pubsub.core), 45
+TOPIC_TREE_FROM_CLASS (in module pubsub.pub),
+38
+TOPIC_TREE_FROM_MODULE (in module pubsub.pub), 38
+TOPIC_TREE_FROM_STRING (in module pubsub.pub), 38
+TopicDefnError, 34, 36
+TopicDefnProvider (class in pubsub.core), 38
+TopicManager (class in pubsub.core), 43
+TopicNameError, 34
+topicsMap (in module pubsub.pub), 35
+topicTreeRoot (in module pubsub.pub), 35
+TopicTreeTraverser (class in pubsub.pub), 34
+typeName() (pubsub.core.Listener method), 48
+
+name (pubsub.core.Topic attribute), 46
+name() (pubsub.core.Listener method), 47
+notifyDeadListener()
+(pubsub.utils.IgnoreNotificationsMixin
+method),
+40
+notifyDelTopic() (pubsub.utils.IgnoreNotificationsMixin
+method), 40
+notifyNewTopic()
+(pubsub.utils.IgnoreNotificationsMixin
+method),
+40
+notifySend()
+(pubsub.utils.IgnoreNotificationsMixin
+method), 40
+notifySubscribe() (pubsub.utils.IgnoreNotificationsMixin
+method), 40
+notifyUnsubscribe()
+(pub- U
+sub.utils.IgnoreNotificationsMixin
+method), UnrecognizedSourceFormatError, 38
+unsubAll() (in module pubsub.pub), 33
+40
+unsubAll() (pubsub.core.Publisher method), 42
+numListeners (pubsub.core.Topic attribute), 46
+unsubscribe() (in module pubsub.pub), 33
+unsubscribe() (pubsub.core.Publisher method), 43
+P
+unsubscribe() (pubsub.core.Topic method), 47
+parent (pubsub.core.Topic attribute), 46
+unsubscribeAllListeners() (pubsub.core.Topic method),
+printTreeDocs() (in module pubsub.utils), 39
+47
+publish() (pubsub.core.Topic method), 46
+useNotifyByPubsubMessage()
+(in module pubsub.utils),
+Publisher (class in pubsub.core), 41
+39
+pubsub.pub (module), 31
+useNotifyByWriteFile() (in module pubsub.utils), 39
+pubsub.utils (module), 39
+
+62
+
+Index
+
+Pypubsub Documentation, Release 4.0.3
+
+V
+validate() (in module pubsub.pub), 34
+validate() (pubsub.core.Topic method), 47
+VERSION_API (in module pubsub.pub), 32
+
+W
+wantsAllMessageData() (pubsub.core.Listener method),
+48
+wantsTopicObjOnCall() (pubsub.core.Listener method),
+48
+
+Index
+
+63
+
+

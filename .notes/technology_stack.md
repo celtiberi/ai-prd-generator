@@ -4,11 +4,24 @@ This document defines the libraries, frameworks, and tools used in the project. 
 
 ```yaml
 technology_stack:
+  documentation_location:
+    path: .notes/dependencies
+    structure:
+      - {library_name}/
+        - overview.md
+        - usage.md
+        - examples.md
+        - integration.md
+        - {library_name}_documentation.txt  # Official documentation
+  
   core_dependencies:
     event_system:
       library: pypubsub
       version: "^4.0.3"
       purpose: Event-driven communication
+      documentation:
+        path: .notes/dependencies/pypubsub/pypubsub_documentation.txt
+        format: text
       usage:
         - Inter-agent messaging
         - State change notifications
@@ -18,6 +31,14 @@ technology_stack:
       library: openai
       version: "^1.5.0"
       purpose: AI model interaction
+      documentation:
+        path: .notes/dependencies/openai/openai_documentation.md
+        format: markdown
+        key_sections:
+          - Chat Completions API
+          - Error handling
+          - Rate limiting
+          - Model usage
       usage:
         - Agent intelligence
         - Content generation
@@ -101,6 +122,21 @@ technology_stack:
       files:
         - package.json
         - yarn.lock
+
+  event_bus:
+    library: pypubsub
+    version: "^4.0.3"
+    features:
+      - Topic-based routing ✓
+      - Error handling ✓
+      - Async support ✓
+      - Event history ✓
+      - Event filtering ✓
+      implementation_status: completed
+      notes:
+        - In-memory event storage with size limits
+        - Support for filtering and metrics
+        - Integrated with system error handling
 ```
 
 ## Quick Reference
