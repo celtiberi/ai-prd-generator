@@ -1,82 +1,78 @@
-from typing import Dict, Any, List
-import aiohttp
+from typing import Dict, Any, Optional
 import asyncio
 from .base_agent import BaseAgent
+from tavily import TavilyClient
+from os import getenv
+import uuid
 
 class ResearchAgent(BaseAgent):
-    def __init__(self, event_bus, api_key: str):
-        super().__init__("ResearchAgent", event_bus)
-        self.api_key = api_key
-        self.active_searches: Dict[str, Any] = {}
-        
-        # Subscribe to research requests
-        self.subscribe("research_request")
+    def __init__(self, tavily_client=None):
+        super().__init__("ResearchAgent")
+        self.tavily_client = tavily_client or TavilyClient(api_key=getenv("TAVILY_API_KEY"))
 
-    async def _search_tavily(self, query: str) -> Dict:
-        """Perform research using Tavily API"""
-        async with aiohttp.ClientSession() as session:
-            headers = {
-                "X-API-KEY": self.api_key,
-                "content-type": "application/json"
-            }
-            payload = {
-                "query": query,
-                "search_depth": "advanced",
-                "include_domains": ["github.com", "stackoverflow.com", "medium.com"],
-                "max_results": 5
+    async def handle_event(self, event):
+        """Handle incoming events"""
+        if event["type"] == "research_request":
+            result = await self.execute_task(event["data"])
+            if result["status"] == "success":
+                self.publish("research_complete", result["data"])
+
+    async def execute_task(self, task: Dict[str, Any]):
+        """Execute a research task"""
+        try:
+            # Search using Tavily
+            results = await self._search_tavily(task["query"])
+            
+            # Process and store results
+            processed_results = self._process_results(results)
+            
+            result = {
+                "status": "success",
+                "data": {
+                    "task_id": task.get("task_id", str(uuid.uuid4())),
+                    "query": task["query"],
+                    "results": processed_results
+                }
             }
             
-            async with session.post(
-                "https://api.tavily.com/search",
-                headers=headers,
-                json=payload
-            ) as response:
-                return await response.json()
+            # Publish the result
+            self.publish("research_complete", result["data"])
+            
+            return result
+            
+        except Exception as e:
+            print(f"Research error: {str(e)}")
+            return {
+                "status": "error",
+                "error": str(e)
+            }
 
-    def handle_event(self, event):
-        """Handle research requests"""
-        if event.type == "research_request":
-            self.execute_task(event.data)
-
-    def execute_task(self, task: Dict):
-        """Execute a research task"""
-        # Create asyncio event loop and run search
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+    async def _search_tavily(self, query: str) -> Dict[str, Any]:
+        """Perform search using Tavily API"""
         try:
-            results = loop.run_until_complete(self._search_tavily(task["query"]))
-            self._process_results(task, results)
-        finally:
-            loop.close()
+            response = await self.tavily_client.search(query)
+            return response
+        except Exception as e:
+            print(f"Tavily search error: {str(e)}")
+            return {"error": str(e)}
 
-    def _process_results(self, task: Dict, results: Dict):
-        """Process and summarize research results"""
-        processed_results = {
-            "task_id": task["task_id"],
-            "query": task["query"],
-            "results": self._summarize_results(results),
-            "context": task["context"]
-        }
-        
-        # Publish research results
-        self.publish("research_complete", processed_results, target="LeadAgent")
-
-    def _summarize_results(self, results: Dict) -> Dict:
-        """Summarize the research results"""
-        summary = {
-            "main_findings": [],
+    def _process_results(self, results: Dict[str, Any]) -> Dict[str, Any]:
+        """Process and format search results"""
+        if "error" in results:
+            return {"error": results["error"]}
+            
+        processed = {
+            "findings": [],
             "sources": []
         }
         
-        if "results" in results:
-            for result in results["results"]:
-                summary["sources"].append({
-                    "title": result.get("title", ""),
-                    "url": result.get("url", ""),
-                    "snippet": result.get("snippet", "")
+        for result in results.get("results", []):
+            if result["relevance_score"] >= 0.7:
+                processed["findings"].append({
+                    "text": result["snippet"],
+                    "source": result["url"],
+                    "relevance": result["relevance_score"]
                 })
+                processed["sources"].append(result["url"])
                 
-                if result.get("relevance_score", 0) > 0.7:
-                    summary["main_findings"].append(result.get("snippet", ""))
-
-        return summary 
+        return processed 

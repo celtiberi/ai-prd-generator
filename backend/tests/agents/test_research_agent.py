@@ -1,6 +1,18 @@
 import pytest
-from unittest.mock import patch, MagicMock
+import logging
+from unittest.mock import Mock, AsyncMock
 from ...agents.research_agent import ResearchAgent
+from tavily import TavilyClient
+from pubsub import pub
+from ..base_test import BaseAgentTest
+
+logger = logging.getLogger(__name__)
+
+@pytest.fixture
+def mock_tavily_client():
+    mock = Mock(spec=TavilyClient)
+    mock.search = AsyncMock()
+    return mock
 
 @pytest.fixture
 def mock_tavily_response():
@@ -15,67 +27,68 @@ def mock_tavily_response():
         ]
     }
 
-def test_research_agent_initialization(event_bus):
-    """Test research agent initialization"""
-    agent = ResearchAgent(event_bus, "test_api_key")
-    assert agent.api_key == "test_api_key"
-    assert len(agent.active_searches) == 0
+class TestResearchAgent(BaseAgentTest):
+    """Test cases for ResearchAgent"""
+    
+    @pytest.mark.asyncio
+    async def test_research_agent_initialization(self, mock_tavily_client, caplog):
+        """Test research agent initialization"""
+        caplog.set_level(logging.DEBUG)
+        logger.info("Testing research agent initialization")
+        
+        agent = ResearchAgent(tavily_client=mock_tavily_client)
+        logger.debug("Created research agent with mock Tavily client")
+        
+        assert agent.tavily_client == mock_tavily_client
+        logger.info("Research agent initialized successfully")
 
-@patch('aiohttp.ClientSession.post')
-async def test_tavily_search(mock_post, event_bus, mock_tavily_response):
-    """Test Tavily API search"""
-    mock_post.return_value.__aenter__.return_value.json = MagicMock(
-        return_value=mock_tavily_response
-    )
-    
-    agent = ResearchAgent(event_bus, "test_api_key")
-    result = await agent._search_tavily("test query")
-    
-    assert result == mock_tavily_response
-    mock_post.assert_called_once()
+    @pytest.mark.asyncio
+    async def test_tavily_search(self, mock_tavily_client, mock_tavily_response, caplog):
+        """Test Tavily API search"""
+        caplog.set_level(logging.DEBUG)
+        logger.info("Testing Tavily API search")
+        
+        mock_tavily_client.search.return_value = mock_tavily_response
+        agent = ResearchAgent(tavily_client=mock_tavily_client)
+        logger.debug("Created research agent with mock Tavily client")
+        
+        query = "test query"
+        logger.info(f"Executing search with query: {query}")
+        result = await agent._search_tavily(query)
+        
+        logger.debug(f"Search result: {result}")
+        assert result == mock_tavily_response
+        mock_tavily_client.search.assert_called_once_with(query)
+        logger.info("Tavily search test completed successfully")
 
-def test_process_results(event_bus):
-    """Test processing of search results"""
-    agent = ResearchAgent(event_bus, "test_api_key")
-    
-    test_results = {
-        "results": [
-            {
-                "title": "Test",
-                "url": "https://example.com",
-                "snippet": "Important info",
-                "relevance_score": 0.9
+    @pytest.mark.asyncio
+    async def test_research_task_execution(self, mock_tavily_client, mock_tavily_response, caplog):
+        """Test complete research task execution"""
+        caplog.set_level(logging.DEBUG)
+        logger.info("Testing research task execution")
+        
+        mock_tavily_client.search.return_value = mock_tavily_response
+        agent = ResearchAgent(tavily_client=mock_tavily_client)
+        logger.debug("Created research agent with mock Tavily client")
+        
+        self.subscribe_to_events(["research_complete"])
+        
+        try:
+            task = {
+                "task_id": "test_1",
+                "query": "test query"
             }
-        ]
-    }
-    
-    test_task = {
-        "task_id": "test_1",
-        "query": "test query",
-        "context": "test context"
-    }
-    
-    processed = agent._summarize_results(test_results)
-    assert "main_findings" in processed
-    assert "sources" in processed
-    assert len(processed["sources"]) == 1
-
-@pytest.mark.asyncio
-async def test_research_task_execution(event_bus, mock_tavily_response):
-    """Test complete research task execution"""
-    agent = ResearchAgent(event_bus, "test_api_key")
-    
-    # Mock the Tavily search
-    with patch.object(agent, '_search_tavily', return_value=mock_tavily_response):
-        # Create a test task
-        task = {
-            "query": "test query",
-            "context": "test context",
-            "task_id": "test_1"
-        }
-        
-        # Execute task
-        await agent.execute_task(task)
-        
-        # Verify results were processed and published
-        # (You might need to add result verification logic depending on your implementation) 
+            
+            logger.info(f"Executing research task: {task}")
+            result = await agent.execute_task(task)
+            
+            # Add small delay to allow event processing
+            import asyncio
+            await asyncio.sleep(0.1)
+            
+            assert result["status"] == "success", "Task should complete successfully"
+            assert self.assert_event_received("research_complete")[0], \
+                "Should receive research complete event"
+                
+        finally:
+            self.cleanup_subscriptions() 

@@ -25,8 +25,8 @@ The system uses a multi-agent architecture:
 
 ### Prerequisites
 
-- Python 3.9+
-- Node.js 16+
+- Python 3.13+
+- Node.js 18+
 - SQLite3
 - Yarn
 
@@ -207,3 +207,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [OpenAI](https://openai.com) for language models
 - [FastAPI](https://fastapi.tiangolo.com) for the backend framework
 - [React](https://reactjs.org) and [Chakra UI](https://chakra-ui.com) for the frontend 
+
+## Development Requirements
+
+- Python 3.9-3.11 (Python 3.12 is not yet supported due to faiss-cpu compatibility) 

@@ -50,3 +50,6 @@ build/
 *.db
 faiss_index/
 *.sqlite3 
+
+# Test logs
+backend/tests/logs/ 

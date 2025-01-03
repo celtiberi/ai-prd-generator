@@ -1,94 +1,65 @@
 import pytest
+import logging
+from typing import List, Dict
 from ...agents.validation_agent import ValidationAgent
+from pubsub import pub
+from ..base_test import BaseAgentTest
+import time
 
-@pytest.fixture
-def sample_feature():
-    return {
-        "name": "User Authentication",
-        "description": "Implement secure user authentication system",
-        "requirements": [
-            "Support OAuth 2.0 authentication",
-            "Implement MFA",
-            "Password hashing with bcrypt"
-        ],
-        "dependencies": ["Database", "Email Service"],
-        "priority": "high",
-        "status": "draft"
-    }
+logger = logging.getLogger(__name__)
 
-def test_validation_agent_initialization(event_bus):
-    """Test validation agent initialization"""
-    agent = ValidationAgent(event_bus)
-    assert agent.name == "ValidationAgent"
-    assert len(agent.validation_rules) > 0
-
-def test_completeness_validation(event_bus, sample_feature):
-    """Test feature completeness validation"""
-    agent = ValidationAgent(event_bus)
-    result = agent._check_completeness(sample_feature)
-    assert isinstance(result, dict)
-    assert "score" in result
-    assert "feedback" in result
-    assert result["score"] >= 0.0 and result["score"] <= 1.0
-
-def test_consistency_validation(event_bus, sample_feature):
-    """Test feature consistency validation"""
-    agent = ValidationAgent(event_bus)
-    result = agent._check_consistency(sample_feature)
-    assert isinstance(result, dict)
-    assert result["score"] >= 0.0
-    assert "requirements_consistent" in result["details"]
-
-def test_feasibility_validation(event_bus, sample_feature):
-    """Test feature feasibility validation"""
-    agent = ValidationAgent(event_bus)
-    result = agent._check_feasibility(sample_feature)
-    assert isinstance(result, dict)
-    assert "dependencies_feasible" in result["details"]
-    assert "technical_complexity" in result["details"]
-
-def test_validation_feedback_generation(event_bus, sample_feature):
-    """Test feedback generation from validation results"""
-    agent = ValidationAgent(event_bus)
-    validation_results = [
-        {
-            "rule": "completeness",
-            "score": 0.6,
-            "feedback": "Missing detailed requirements"
-        },
-        {
-            "rule": "consistency",
-            "score": 0.8,
-            "feedback": "Requirements align with description"
-        }
-    ]
-    feedback = agent._generate_feedback(validation_results)
-    assert isinstance(feedback, str)
-    assert "Completeness" in feedback
-
-def test_full_validation_process(event_bus, sample_feature):
-    """Test complete validation process"""
-    agent = ValidationAgent(event_bus)
+class TestValidationAgent(BaseAgentTest):
+    """Test cases for ValidationAgent"""
     
-    # Track validation results
-    validation_results = []
-    def track_validation(event):
-        if event.type == "validation_complete":
-            validation_results.append(event.data)
-    
-    event_bus.subscribe("validation_complete", track_validation)
-    
-    # Trigger validation
-    agent.handle_event({
-        "type": "validation_request",
-        "data": {"feature": sample_feature}
-    })
-    
-    # Wait for event processing
-    import time
-    time.sleep(0.1)
-    
-    # Verify validation results
-    assert len(validation_results) > 0
-    assert "validation_results" in validation_results[0]
-    assert "feedback" in validation_results[0] 
+    def test_validation_agent_initialization(self, caplog):
+        """Test validation agent initialization"""
+        caplog.set_level(logging.DEBUG)
+        logger.info("Testing validation agent initialization")
+        
+        agent = ValidationAgent()
+        logger.debug(f"Created validation agent: {agent.name}")
+        
+        assert agent.name == "ValidationAgent"
+        logger.info("Validation agent initialized successfully")
+
+    def test_completeness_validation(self, sample_feature, sample_context, caplog):
+        """Test feature completeness validation"""
+        caplog.set_level(logging.DEBUG)
+        logger.info("Testing feature completeness validation")
+        
+        agent = ValidationAgent()
+        logger.debug("Created validation agent")
+        
+        logger.info(f"Validating feature: {sample_feature}")
+        result = agent._check_completeness(sample_feature, sample_context)
+        logger.debug(f"Validation result: {result}")
+        
+        assert "score" in result, "Result should contain a score"
+        assert "feedback" in result, "Result should contain feedback"
+        assert result["rule"] == "completeness"
+        logger.info("Completeness validation completed successfully")
+
+    def test_validation_process(self, sample_feature, sample_context, caplog):
+        """Test complete validation process"""
+        caplog.set_level(logging.DEBUG)
+        logger.info("Testing complete validation process")
+        
+        agent = ValidationAgent()
+        logger.debug("Created validation agent")
+        
+        self.subscribe_to_events(["validation_complete"])
+        
+        try:
+            logger.info("Starting validation process")
+            agent.validate_feature(sample_feature, sample_context)
+            
+            time.sleep(0.1)  # Add delay for event processing
+            
+            assert self.assert_event_received("validation_complete")[0], \
+                "Should receive validation complete event"
+            event = next(e for e in self.events_received if isinstance(e, dict) and e.get("type") == "validation_complete")
+            assert "validation_results" in event["data"]["data"], \
+                "Event should contain validation results"
+            
+        finally:
+            self.cleanup_subscriptions() 

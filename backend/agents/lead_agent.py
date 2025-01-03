@@ -1,127 +1,116 @@
 from typing import Dict, Any, List
 from .base_agent import BaseAgent
 from dataclasses import dataclass
+from ..services.llm_service import LLMService
+from .memory_agent import MemoryAgent
 import json
+import uuid
+from schemas.project_schemas import FEATURE_ANALYSIS_SCHEMA, validate_project_summary
 
 @dataclass
 class ProjectContext:
-    title: str
-    description: str
-    objectives: List[str]
+    summary: Dict[str, Any]
+    analysis: Dict[str, Any] = None
     status: str = "initializing"
 
-class LeadAgent(BaseAgent):
-    def __init__(self, event_bus):
-        super().__init__("LeadAgent", event_bus)
-        self.project_context = None
-        self.active_tasks: Dict[str, Any] = {}
-        
-        # Subscribe to relevant events
-        self.subscribe("research_complete")
-        self.subscribe("feature_defined")
-        self.subscribe("validation_complete")
-        self.subscribe("user_feedback")
-
-    def initialize_project(self, project_data: dict):
-        """Initialize a new PRD generation project"""
-        self.project_context = ProjectContext(
-            title=project_data.get('title', ''),
-            description=project_data.get('description', ''),
-            objectives=project_data.get('objectives', [])
-        )
-        
-        # Start the PRD generation workflow
-        self._start_research_phase()
-        return {"status": "initialized", "project": self.project_context}
-
-    def _start_research_phase(self):
-        """Initiate the research phase by delegating to Research Agents"""
-        research_tasks = self._generate_research_tasks()
-        for task in research_tasks:
-            self.publish("research_request", {
-                "query": task,
-                "context": self.project_context.title,
-                "task_id": f"research_{len(self.active_tasks)}"
-            }, target="ResearchAgent")
-            
-    def _generate_research_tasks(self) -> List[str]:
-        """Generate research tasks based on project context"""
-        tasks = []
-        # Add core research tasks
-        tasks.append(f"Technical requirements for {self.project_context.title}")
-        tasks.append(f"Best practices for {self.project_context.title}")
-        
-        # Add objective-specific research tasks
-        for objective in self.project_context.objectives:
-            tasks.append(f"Implementation approaches for: {objective}")
-            
-        return tasks
-
-    def handle_event(self, event):
-        """Handle various events from other agents"""
-        handlers = {
-            "research_complete": self._handle_research_complete,
-            "feature_defined": self._handle_feature_defined,
-            "validation_complete": self._handle_validation_complete,
-            "user_feedback": self._handle_user_feedback
+    def to_dict(self) -> Dict:
+        return {
+            "original_summary": self.summary,
+            "analysis": self.analysis,
+            "status": self.status
         }
-        
-        if event.type in handlers:
-            handlers[event.type](event.data)
 
-    def _handle_research_complete(self, data: dict):
-        """Process completed research and initiate feature definition"""
-        # Store research results
-        self.publish("update_memory", {
-            "type": "research",
-            "text": json.dumps(data["results"]),
-            "name": data["task_id"]
-        })
-        
-        # Check if all research is complete
-        if self._is_research_phase_complete():
-            self._start_feature_definition()
+class LeadAgent(BaseAgent):
+    def __init__(self, llm_service=None, settings=None):
+        super().__init__("LeadAgent")
+        self.llm = llm_service or LLMService()
+        self.project_context = None
+        self.settings = settings
+        self.log(f"Initialized with settings: {settings}")
 
-    def _handle_feature_defined(self, data: dict):
-        """Process defined features and initiate validation"""
-        self.publish("validation_request", {
-            "feature": data["feature"],
-            "context": self.project_context
-        }, target="ValidationAgent")
+    async def handle_event(self, event: Dict[str, Any]) -> None:
+        """Handle incoming events"""
+        if event["type"] == "project_summary_ready":
+            await self.initialize_from_summary(event["data"])
+        elif event["type"] == "research_complete":
+            await self._process_research_results(event["data"])
+        elif event["type"] == "feature_defined":
+            await self._process_feature_definition(event["data"])
+        elif event["type"] == "validation_complete":
+            await self._process_validation_results(event["data"])
+        elif event["type"] == "user_feedback":
+            # Handle user feedback
+            if not self.settings:
+                self.log(f"Settings missing: {self.settings}")
+                raise ValueError("Settings required for memory operations")
+            memory_agent = MemoryAgent(self.settings)
+            # Store each feature from the feedback
+            for feature in event["data"]["features"]:
+                memory_agent.store(feature)  # Store individual feature instead of whole feedback object
 
-    def _handle_validation_complete(self, data: dict):
-        """Process validation results and update PRD accordingly"""
-        if data["status"] == "valid":
-            self.publish("update_memory", {
-                "type": "feature",
-                "text": json.dumps(data["feature"]),
-                "name": data["feature"]["name"],
-                "status": "validated"
+    async def initialize_from_summary(self, project_summary: Dict[str, Any]):
+        """Initialize project from summary and delegate features"""
+        try:
+            self.project_context = project_summary
+            
+            # Request initial research
+            self.publish("research_request", {
+                "query": f"Best practices and patterns for {project_summary['title']}",
+                "context": project_summary
             })
-        else:
-            # Reinitiate feature definition with feedback
-            self.publish("feature_request", {
-                "context": self.project_context,
-                "feedback": data["feedback"]
-            }, target="FeatureAgent")
+            
+            # Start feature analysis
+            response = await self.llm.structured_output(
+                messages=[{
+                    "role": "user",
+                    "content": f"Analyze this project and break it down into features:\n{json.dumps(project_summary, indent=2)}"
+                }],
+                output_schema=FEATURE_ANALYSIS_SCHEMA
+            )
+            
+            if response["status"] == "success":
+                analysis = response["data"]
+                
+                # Delegate features to feature agents
+                for feature in analysis["core_features"]:
+                    self.publish("feature_request", {
+                        "feature": feature,
+                        "context": self.project_context
+                    })
+                
+                return {
+                    "status": "analysis_complete",
+                    "analysis": analysis
+                }
+            else:
+                return {
+                    "status": "analysis_failed",
+                    "error": response.get("error", "Unknown error")
+                }
+                
+        except Exception as e:
+            print(f"Error in initialize_from_summary: {str(e)}")
+            return {
+                "status": "analysis_failed",
+                "error": str(e)
+            }
 
-    def _handle_user_feedback(self, data: dict):
-        """Process user feedback and adjust PRD generation"""
-        self.project_context.status = "updating"
-        # Trigger relevant updates based on feedback
-        if "features" in data:
-            self._handle_feature_feedback(data["features"])
-        if "objectives" in data:
-            self._update_objectives(data["objectives"])
+    async def _process_research_results(self, data: Dict[str, Any]):
+        """Process research results and update project context"""
+        # Implementation here
 
-    def _is_research_phase_complete(self) -> bool:
-        """Check if all research tasks are complete"""
-        # Implementation depends on how we're tracking tasks
-        return len([t for t in self.active_tasks.values() if t["type"] == "research"]) == 0
+    async def _process_feature_definition(self, data: Dict[str, Any]):
+        """Process completed feature definitions"""
+        # Implementation here
 
-    def _start_feature_definition(self):
-        """Initiate the feature definition phase"""
-        self.project_context.status = "defining_features"
-        self.publish("feature_request", {
-            "context": self.project_context
-        }, target="FeatureAgent") 
+    async def _process_validation_results(self, data: Dict[str, Any]):
+        """Process validation results for features"""
+        # Implementation here 
+
+    def initialize_project(self, project_data: Dict[str, Any]) -> None:
+        """Initialize project with basic data before analysis"""
+        self.project_data = project_data
+        self.log(f"Initializing project with settings: {self.settings}")
+        self.publish("project_initialized", {
+            "project": project_data
+        }) 

@@ -4,10 +4,11 @@ from typing import Dict, Any, List, Optional
 import faiss
 import numpy as np
 from .base_agent import BaseAgent
+import os
 
 class MemoryAgent(BaseAgent):
-    def __init__(self, event_bus, settings):
-        super().__init__("MemoryAgent", event_bus)
+    def __init__(self, settings):
+        super().__init__("MemoryAgent")
         self.vector_dim = settings.VECTOR_DIM
         self.vector_db = faiss.IndexFlatL2(self.vector_dim)
         self.sql_db = self._initialize_database(settings.SQLITE_DB_PATH)
@@ -17,6 +18,10 @@ class MemoryAgent(BaseAgent):
 
     def _initialize_database(self, db_path: str) -> sqlite3.Connection:
         """Initialize SQLite database with complete schema"""
+        if db_path != ":memory:":
+            # Only create directories for file-based databases
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
         
@@ -160,26 +165,55 @@ class MemoryAgent(BaseAgent):
         
         return feature
 
-    def handle_event(self, event):
-        if event.type == 'update_memory':
-            self.store(event.data)
+    def handle_event(self, event: Dict[str, Any]):
+        """Handle incoming events"""
+        if event["type"] == "update_memory":
+            data = event["data"]
+            if data["type"] == "research":
+                # Store research findings using existing store method
+                self.store({
+                    "text": data["text"],
+                    "name": data["name"],
+                    "type": "research"
+                })
+                # Event bus notification is already handled in store method
 
-    def store(self, data: dict):
-        # Store embeddings in FAISS
-        if 'text' in data:
-            embedding = self._generate_embedding(data['text'])
-            self.vector_db.add(np.array([embedding]).astype('float32'))
-
-        # Store metadata in SQLite
+    def store(self, data: Dict[str, Any]) -> None:
+        """Store data in memory"""
         cursor = self.sql_db.cursor()
-        cursor.execute(
-            "INSERT INTO features (name, description, status) VALUES (?, ?, ?)",
-            (data.get('name', ''), data.get('text', ''), data.get('status', 'active'))
-        )
+        
+        if 'type' in data and data['type'] == 'research':
+            # Handle research data
+            if 'text' in data:
+                embedding = self._generate_embedding(data['text'])
+                self.vector_db.add(np.array([embedding]).astype('float32'))
+            cursor.execute(
+                "INSERT INTO features (name, description, status) VALUES (?, ?, ?)",
+                (data.get('name', ''), data.get('text', ''), data.get('status', 'active'))
+            )
+        else:
+            # Handle feature data
+            requirements = json.dumps(data.get('requirements', []))
+            cursor.execute("""
+                INSERT INTO features 
+                (name, description, status, priority, requirements, feedback) 
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                data.get('name', ''),
+                data.get('description', ''),
+                data.get('status', 'draft'),
+                data.get('priority', 'medium'),
+                requirements,
+                data.get('feedback', '')
+            ))
+
         self.sql_db.commit()
 
         # Notify other agents of the update
-        self.publish('memory_updated', data)
+        self.publish("memory_updated", {
+            "type": "memory_updated",
+            "data": data
+        })
 
     def _generate_embedding(self, text: str) -> np.ndarray:
         # TODO: Replace with actual embedding model
@@ -197,4 +231,6 @@ class MemoryAgent(BaseAgent):
         return distances, indices
 
     def __del__(self):
-        self.sql_db.close() 
+        """Clean up database connection"""
+        if hasattr(self, 'sql_db') and self.sql_db:
+            self.sql_db.close() 

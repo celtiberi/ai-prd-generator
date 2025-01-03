@@ -1,7 +1,18 @@
 export interface Project {
     title: string;
     description: string;
+    target_users: string[];
+    goals: string[];
+}
+
+export interface ProjectInitResponse {
+    status: string;
+    proposed_objectives: string[];
+}
+
+export interface ObjectiveApproval {
     objectives: string[];
+    modifications?: string[];
 }
 
 export interface Feature {

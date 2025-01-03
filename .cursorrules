@@ -1,48 +1,128 @@
 # Cursor AI IDE Rules
 
-# Documentation
-- Keep README.md up to date with changes
-- Document all public functions and classes with docstrings
-- Update API documentation when endpoints change
-- Maintain clear commit messages that describe changes
-
-# Code Quality
-- Follow PEP 8 style guide for Python code
-- Use TypeScript for frontend code
-- Write tests for new features
-- Keep test coverage above 80%
-
-# Project Structure
-- Organize code into appropriate directories
-- Keep related files together
-- Use consistent file naming conventions
-
-# Git Practices
-- Create feature branches for new work
-- Keep commits atomic and focused
-- Update dependencies in requirements.txt/package.json
-
-# Error Handling
-- Implement proper error handling
-- Log errors appropriately
-- Return meaningful error messages
-
-# Security
-- Never commit API keys or secrets
-- Validate all user input
-- Follow security best practices
-
-# Performance
-- Optimize database queries
-- Implement caching where appropriate
-- Monitor memory usage in agents
-
-# Frontend
-- Keep UI components reusable
-- Maintain responsive design
-- Follow accessibility guidelines
-
-# Testing
-- Write unit tests for new features
-- Update integration tests when needed
-- Test edge cases and error conditions 
+{
+    "rules": {
+        "markdown_formatting": {
+            "description": "Rules for outputting markdown files",
+            "guidelines": [
+                "Use quadruple backticks for outer markdown code blocks with file path: ````markdown:path/to/file",
+                "Drop a line after any heading before starting code blocks",
+                "Indent inner code blocks with 4 spaces",
+                "Use triple backticks with language for inner code blocks",
+                "Ensure proper nesting of code blocks",
+                "Close outer block with quadruple backticks on new line",
+                "Include file path in opening code fence for file edits"
+            ]
+        },
+        "testing": {
+            "description": "Rules for creating and maintaining tests",
+            "reference": ".notes/testing_guidelines.md",
+            "format": "JSON structured guidelines for test implementation"
+        },
+        "documentation": {
+            "description": "Documentation requirements",
+            "guidelines": [
+                "Keep README.md up to date with changes",
+                "Document all public functions and classes with docstrings",
+                "Update API documentation when endpoints change",
+                "Maintain clear commit messages that describe changes"
+            ]
+        },
+        "code_quality": {
+            "description": "Code quality standards",
+            "guidelines": [
+                "Follow PEP 8 style guide for Python code",
+                "Use TypeScript for frontend code",
+                "Write tests for new features",
+                "Keep test coverage above 80%",
+                "Speak up immediately if a proposed change could lead to problems"
+            ]
+        },
+        "project_structure": {
+            "description": "Project organization",
+            "guidelines": [
+                "Organize code into appropriate directories",
+                "Keep related files together",
+                "Use consistent file naming conventions"
+            ]
+        },
+        "git_practices": {
+            "description": "Git workflow requirements",
+            "guidelines": [
+                "Create feature branches for new work",
+                "Keep commits atomic and focused",
+                "Update dependencies in requirements.txt/package.json"
+            ]
+        },
+        "error_handling": {
+            "description": "Error handling requirements",
+            "guidelines": [
+                "Implement proper error handling",
+                "Log errors appropriately",
+                "Return meaningful error messages"
+            ]
+        },
+        "security": {
+            "description": "Security requirements",
+            "guidelines": [
+                "Never commit API keys or secrets",
+                "Never override existing API keys in .env files",
+                "Do not modify sensitive data in configuration files",
+                "Validate all user input",
+                "Follow security best practices"
+            ]
+        },
+        "performance": {
+            "description": "Performance requirements",
+            "guidelines": [
+                "Optimize database queries",
+                "Implement caching where appropriate",
+                "Monitor memory usage in agents"
+            ]
+        },
+        "frontend": {
+            "description": "Frontend development guidelines",
+            "guidelines": [
+                "Keep UI components reusable",
+                "Maintain responsive design",
+                "Follow accessibility guidelines"
+            ]
+        },
+        "code_reuse": {
+            "description": "Code reuse guidelines",
+            "guidelines": [
+                "Use existing libraries instead of writing custom implementations",
+                "Justify and document any custom implementations of solved problems",
+                "Get approval before building custom infrastructure components"
+            ]
+        },
+        "context_initialization": {
+            "description": "Starting point for each interaction",
+            "steps": [
+                "ALWAYS read `.notes/project_overview.md` and `.notes/task_list.md`"
+            ]
+        },
+        "operational_protocol": {
+            "description": "How to approach tasks",
+            "before_action": [
+                "Create a MECE task breakdown"
+            ],
+            "code_changes": [
+                "Read relevant code sections before editing",
+                "Preserve existing functionality",
+                "Maintain type safety"
+            ]
+        },
+        "safety_requirements": [
+            "NEVER break type safety",
+            "ALWAYS maintain proper error handling",
+            "ALWAYS document new code"
+        ],
+        "priorities": [
+            {
+                "source": ".notes/",
+                "weight": 1.0
+            }
+        ]
+    }
+} 

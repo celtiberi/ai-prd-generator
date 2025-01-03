@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Project, ProjectProgress, Feature } from '../types';
+import { Project, ProjectProgress, Feature, ProjectInitResponse, ObjectiveApproval } from '../types';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -11,8 +11,13 @@ const api = axios.create({
 });
 
 export const projectApi = {
-    initialize: async (project: Project) => {
+    initialize: async (project: Project): Promise<ProjectInitResponse> => {
         const response = await api.post('/init', project);
+        return response.data;
+    },
+
+    approveObjectives: async (approval: ObjectiveApproval) => {
+        const response = await api.post('/approve-objectives', approval);
         return response.data;
     },
 

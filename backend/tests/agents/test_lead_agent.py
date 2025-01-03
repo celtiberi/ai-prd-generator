@@ -1,129 +1,61 @@
 import pytest
-from unittest.mock import Mock
-from ...agents.lead_agent import LeadAgent, ProjectContext
+import logging
+from unittest.mock import Mock, AsyncMock
+from ...agents.lead_agent import LeadAgent
+from ...services.llm_service import LLMService
+from ...schemas.project_schemas import validate_project_summary
+from ...schemas.test_fixtures import TIC_TAC_TOE_SUMMARY
+from ..base_test import BaseAgentTest
 
-def test_lead_agent_initialization(event_bus):
-    """Test lead agent initialization"""
-    agent = LeadAgent(event_bus)
-    assert agent.name == "LeadAgent"
-    assert agent.project_context is None
-    assert isinstance(agent.active_tasks, dict)
+logger = logging.getLogger(__name__)
 
-def test_project_initialization(event_bus, sample_project_data):
-    """Test project initialization"""
-    agent = LeadAgent(event_bus)
-    result = agent.initialize_project(sample_project_data)
+class TestLeadAgent(BaseAgentTest):
+    """Test cases for LeadAgent"""
     
-    assert result["status"] == "initialized"
-    assert isinstance(agent.project_context, ProjectContext)
-    assert agent.project_context.title == sample_project_data["title"]
-    assert agent.project_context.objectives == sample_project_data["objectives"]
+    @pytest.mark.asyncio
+    async def test_feature_delegation(self, sample_project_summary, mock_llm_service, caplog):
+        """Test feature delegation to feature agents"""
+        caplog.set_level(logging.DEBUG)
+        logger.info("Testing feature delegation")
+        
+        self.subscribe_to_events(["feature_request"])
+        
+        try:
+            agent = LeadAgent(llm_service=mock_llm_service)
+            logger.debug("Created lead agent with mock LLM service")
+            
+            await agent.initialize_from_summary(sample_project_summary)
+            logger.info("Initialized agent with project summary")
+            
+            assert self.assert_event_received("feature_request")[0], \
+                "Should receive feature request event"
+            assert self.events_received[0]["data"]["feature"]["name"] == "Game Board"
+            
+        finally:
+            self.cleanup_subscriptions()
 
-def test_research_phase_start(event_bus, sample_project_data):
-    """Test research phase initialization"""
-    agent = LeadAgent(event_bus)
-    
-    # Track published events
-    published_events = []
-    def track_event(event):
-        if event.type == "research_request":
-            published_events.append(event)
-    
-    event_bus.subscribe("research_request", track_event)
-    
-    # Initialize project
-    agent.initialize_project(sample_project_data)
-    
-    # Wait for event processing
-    import time
-    time.sleep(0.1)
-    
-    # Verify research tasks were created
-    assert len(published_events) > 0
-    for event in published_events:
-        assert "query" in event.data
-        assert "context" in event.data
-        assert "task_id" in event.data
-
-def test_handle_research_complete(event_bus, sample_project_data, mock_research_results):
-    """Test handling of completed research"""
-    agent = LeadAgent(event_bus)
-    agent.initialize_project(sample_project_data)
-    
-    # Track memory updates
-    memory_updates = []
-    def track_memory_update(event):
-        if event.type == "update_memory":
-            memory_updates.append(event)
-    
-    event_bus.subscribe("update_memory", track_memory_update)
-    
-    # Simulate research completion
-    agent._handle_research_complete(mock_research_results)
-    
-    # Wait for event processing
-    import time
-    time.sleep(0.1)
-    
-    # Verify memory was updated
-    assert len(memory_updates) > 0
-    assert memory_updates[0].data["type"] == "research"
-
-def test_feature_definition_phase(event_bus, sample_project_data):
-    """Test transition to feature definition phase"""
-    agent = LeadAgent(event_bus)
-    agent.initialize_project(sample_project_data)
-    
-    # Track feature requests
-    feature_requests = []
-    def track_feature_request(event):
-        if event.type == "feature_request":
-            feature_requests.append(event)
-    
-    event_bus.subscribe("feature_request", track_feature_request)
-    
-    # Simulate research phase completion
-    agent.project_context.status = "research_complete"
-    agent._start_feature_definition()
-    
-    # Wait for event processing
-    import time
-    time.sleep(0.1)
-    
-    # Verify feature definition was initiated
-    assert len(feature_requests) > 0
-    assert "context" in feature_requests[0].data
-
-def test_handle_user_feedback(event_bus, sample_project_data):
-    """Test handling of user feedback"""
-    agent = LeadAgent(event_bus)
-    agent.initialize_project(sample_project_data)
-    
-    feedback_data = {
-        "features": [
-            {
-                "name": "Authentication",
-                "feedback": "Add support for SSO"
-            }
-        ],
-        "objectives": ["Add performance monitoring"]
-    }
-    
-    # Track feature requests resulting from feedback
-    feature_requests = []
-    def track_feature_request(event):
-        if event.type == "feature_request":
-            feature_requests.append(event)
-    
-    event_bus.subscribe("feature_request", track_feature_request)
-    
-    # Submit feedback
-    agent._handle_user_feedback(feedback_data)
-    
-    # Wait for event processing
-    import time
-    time.sleep(0.1)
-    
-    # Verify feedback was processed
-    assert agent.project_context.status == "updating"
-    assert len(feature_requests) > 0 
+    @pytest.mark.asyncio
+    async def test_analysis_failure_handling(self, sample_project_summary, mock_llm_service, caplog):
+        """Test handling of analysis failures"""
+        caplog.set_level(logging.DEBUG)
+        
+        self.subscribe_to_events(["feature_request"])
+        
+        try:
+            async def mock_failed_analysis(*args, **kwargs):
+                return {
+                    "status": "error",
+                    "error": "Analysis failed"
+                }
+            
+            mock_llm_service.structured_output.side_effect = mock_failed_analysis
+            
+            agent = LeadAgent(llm_service=mock_llm_service)
+            result = await agent.initialize_from_summary(sample_project_summary)
+            
+            assert result["status"] == "analysis_failed"
+            assert "error" in result
+            assert not self.events_received, "No features should be delegated"
+            
+        finally:
+            self.cleanup_subscriptions() 

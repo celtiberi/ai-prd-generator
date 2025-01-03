@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     RESEARCH_AGENT_THREADS: int = 5
 
     # API Keys
-    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
-    TAVILY_API_KEY: Optional[str] = os.getenv("TAVILY_API_KEY")
+    OPENAI_API_KEY: str
+    TAVILY_API_KEY: str
 
     # Database Settings
     FAISS_INDEX_PATH: str = "./db/faiss_index"
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     VECTOR_DIM: int = 768
 
     class Config:
-        env_file = ".env"
+        env_file = "config/.env"
 
     def validate_api_keys(self):
         if not self.OPENAI_API_KEY:

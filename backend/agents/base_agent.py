@@ -1,20 +1,25 @@
-from typing import Any
-from ..events.event_bus import EventBus
+from pubsub import pub
+from typing import Any, Dict
 
 class BaseAgent:
-    def __init__(self, name: str, event_bus: EventBus):
+    def __init__(self, name: str):
         self.name = name
-        self.event_bus = event_bus
         self.log(f"{self.name} initialized")
 
     def log(self, message: str):
         print(f"[{self.name}] {message}")
 
     def subscribe(self, event_type: str):
-        self.event_bus.subscribe(event_type, self.handle_event)
+        pub.subscribe(self.handle_event, event_type)
 
-    def publish(self, event_type: str, data: Any, target: str = None):
-        self.event_bus.publish(event_type, data, target)
+    def publish(self, topic: str, data: Dict[str, Any]) -> None:
+        """Publish an event to the event bus"""
+        # Always wrap data in a standard event structure
+        event = {
+            "type": topic,
+            "data": data
+        }
+        pub.sendMessage(topic, event=event)
 
     def handle_event(self, event):
         """Override this method in derived agent classes"""
